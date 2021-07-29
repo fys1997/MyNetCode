@@ -63,7 +63,7 @@ class Seq2Seq(nn.Module):
                            tradGcn=tradGcn, dropout=dropout)
         self.dimCNN=nn.Conv2d(in_channels=2,out_channels=1,kernel_size=(1,1))
         for i in range(Tout):
-            self.attentionLinear.append(nn.Linear(in_features=Tin+1,out_features=1))
+            self.attentionLinear.append(nn.Linear(in_features=Tin+n_layers,out_features=n_layers))
 
     def forward(self,x,y,teacher_forcing_ratio=0.5):
         """
@@ -77,7 +77,7 @@ class Seq2Seq(nn.Module):
         target_len=y.shape[0]
         outputs=torch.zeros(y[...,0].shape).to(self.device)
 
-        _,hidden=self.encoder(x) # 得到_做attention以避免误差累加 其中_:[Tin*batch*N] hidden:[1*batch*N]
+        _,hidden=self.encoder(x) # 得到_做attention以避免误差累加 其中_:[Tin*batch*N] hidden:[n_layers*batch*N]
         decoder_input=x[-1:,:,:]
         for i in range(target_len):
             # 对decoder_input做一次图卷积
