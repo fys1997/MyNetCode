@@ -18,7 +18,7 @@ class Transformer(nn.Module):
         self.positionEmbedding = PE.PositionalEncoding(d_model=dmodel, dropout=dropout)
         self.dropout = nn.Dropout(dropout)
         self.Tout=Tout
-        self.projection=nn.Linear(8+Tout,8+Tout)
+        self.projection=nn.Linear(12+Tout,12+Tout)
 
     def forward(self, X, Y, teacher_forcing_ratio):
         """
@@ -38,12 +38,12 @@ class Transformer(nn.Module):
         encoder_output = self.encoder(xin)
 
         # decoder 一步预测
-        Y=torch.cat([X[-8:,...],Y],dim=0) # (8+Tout)*dmodel*batch
-        target_len = Y.shape[0]
-        Y=self.positionEmbedding(Y)
-        # tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
-        decoder_output=self.decoder(tgt=Y,memory=encoder_output) # (8+Tout)*dmodel*batch
-        decoder_output=self.projection(decoder_output.permute(2,1,0).contiguous()) # batch*dmodel*(8+Tout)
+        Y=torch.cat([X,Y],dim=0) # (8+Tout)*dmodel*batch
+        # target_len = Y.shape[0]
+        # Y=self.positionEmbedding(Y)
+        # # tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
+        # decoder_output=self.decoder(tgt=Y,memory=encoder_output) # (8+Tout)*dmodel*batch
+        decoder_output=self.projection(Y.permute(2,1,0).contiguous()) # batch*dmodel*(8+Tout)
 
 
         decoder_output = self.transformerCNN2(decoder_output)  # batch*N*(8+Tout)

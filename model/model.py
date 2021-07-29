@@ -86,7 +86,7 @@ class mixNet(nn.Module):
 
         x=x.permute(2,0,1).contiguous() # Tin*batch*N
         # Seq2Seq GRU部分
-        y1 = self.seq2seq(x, Y, teacher_forcing_ratio=teacher_forcing_ratio)  # outputT*batch*N
+        y1 = self.seq2seq(Hout, Y, teacher_forcing_ratio=teacher_forcing_ratio)  # outputT*batch*N
         y1 = y1.permute(1, 2, 0).contiguous()  # batch*N*outputT
         y1 = self.batchnormS2S(y1.unsqueeze(dim=1)).squeeze(dim=1)
         y1 = torch.relu(y1) # batch*N*outputT
