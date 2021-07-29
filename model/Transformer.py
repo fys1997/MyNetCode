@@ -38,7 +38,7 @@ class Transformer(nn.Module):
         encoder_output = self.encoder(xin) # Tin*batch*dmodel
 
         # decoder 一步预测
-        Y=torch.cat([encoder_output,Y],dim=0) # (12+Tout)*dmodel*batch
+        Y = torch.cat([encoder_output,Y],dim=0) # (12+Tout)*dmodel*batch
         # target_len = Y.shape[0]
         # Y=self.positionEmbedding(Y)
         # # tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
