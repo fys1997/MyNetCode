@@ -49,6 +49,12 @@ class mixNet(nn.Module):
         # 此处定义将X维度变为1
         self.in_dims=args.in_dims
         self.dimCNN1=nn.Conv2d(in_channels=self.in_dims,out_channels=1,kernel_size=(1,1))
+        self.dimCNN2=nn.Conv2d(in_channels=self.in_dims,out_channels=64,kernel_size=(1,1))
+        self.dimCNN3=nn.Conv2d(in_channels=64,out_channels=256,kernel_size=(1,1))
+        self.dimCNN4=nn.Conv2d(in_channels=256,out_channels=512,kernel_size=(1,1))
+        self.dimCNN5=nn.Conv2d(in_channels=512,out_channels=256,kernel_size=(1,1))
+        self.dimCNN6 = nn.Conv2d(in_channels=256, out_channels=64, kernel_size=(1, 1))
+        self.dimCNN7 = nn.Conv2d(in_channels=64, out_channels=self.in_dims, kernel_size=(1, 1))
         # 定义batchNorm
         self.batchnormS2S=nn.BatchNorm2d(num_features=1)
         self.batchnormTran=nn.BatchNorm2d(num_features=1)
@@ -68,7 +74,15 @@ class mixNet(nn.Module):
         # 先图卷积
         Hout=self.GCN(X[...,0]) # Tin*batch*N
         x[...,0]=Hout.permute(1,2,0).contiguous() # x:[batch*N*Tin*2]
+        # 维度变化测试
+        x=self.dimCNN2(x)
+        x=self.dimCNN3(x)
+        x=self.dimCNN4(x)
+        x=self.dimCNN5(x)
+        x=self.dimCNN6(x)
+        x=self.dimCNN7(x)
         x=self.dimCNN1(x.permute(0,3,1,2).contiguous()).squeeze(dim=1) # batch*N*Tin
+
         x=x.permute(2,0,1).contiguous() # Tin*batch*N
         # Seq2Seq GRU部分
         y1 = self.seq2seq(x, Y, teacher_forcing_ratio=teacher_forcing_ratio)  # outputT*batch*N
