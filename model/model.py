@@ -74,6 +74,7 @@ class mixNet(nn.Module):
         # 先图卷积
         Hout=self.GCN(X[...,0]) # Tin*batch*N
         x[...,0]=Hout.permute(1,2,0).contiguous() # x:[batch*N*Tin*2]
+        x=x.permute(0,3,1,2).contiguous() # x:[batch*2*N*Tin]
         # 维度变化测试
         x=self.dimCNN2(x)
         x=self.dimCNN3(x)
@@ -81,7 +82,7 @@ class mixNet(nn.Module):
         x=self.dimCNN5(x)
         x=self.dimCNN6(x)
         x=self.dimCNN7(x)
-        x=self.dimCNN1(x.permute(0,3,1,2).contiguous()).squeeze(dim=1) # batch*N*Tin
+        x=self.dimCNN1(x).squeeze(dim=1) # batch*N*Tin
 
         x=x.permute(2,0,1).contiguous() # Tin*batch*N
         # Seq2Seq GRU部分
