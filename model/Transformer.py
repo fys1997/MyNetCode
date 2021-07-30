@@ -39,12 +39,12 @@ class Transformer(nn.Module):
 
         # decoder 一步预测
         Y = torch.cat([encoder_output,Y],dim=0) # (12+Tout)*dmodel*batch
-        # target_len = Y.shape[0]
-        # Y=self.positionEmbedding(Y)
-        # # tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
-        # decoder_output=self.decoder(tgt=Y,memory=encoder_output) # (8+Tout)*dmodel*batch
-        decoder_output=self.projection(Y.permute(2,1,0).contiguous()) # batch*dmodel*(8+Tout)
+        target_len = Y.shape[0]
+        Y=self.positionEmbedding(Y)
+        tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
+        decoder_output=self.decoder(tgt=Y,tgt_mask=tgt_mask,memory=encoder_output) # (12+Tout)*dmodel*batch
+        decoder_output=self.projection(decoder_output.permute(2,1,0).contiguous()) # batch*dmodel*(12+Tout)
 
 
-        decoder_output = self.transformerCNN2(decoder_output)  # batch*N*(8+Tout)
+        decoder_output = self.transformerCNN2(decoder_output)  # batch*N*(12+Tout)
         return decoder_output[...,-self.Tout:] # batch*N*Tout
