@@ -24,6 +24,7 @@ parser.add_argument('--tradGcn',type=bool,default=False,help='whether use tradGc
 parser.add_argument('--dmodel',type=int,default=64,help='transformerEncoder dmodel')
 parser.add_argument('--n_layers',type=int,default=2,help='GRU n_layers')
 parser.add_argument('--in_dims',type=int,default=2,help='')
+parser.add_argument('--num_embedding',type=int,default=288,help='')
 
 args=parser.parse_args()
 

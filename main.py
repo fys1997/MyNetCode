@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import util
 import numpy as np
-import pickle
+import pandas as pd
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
@@ -16,10 +16,13 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-   X=torch.randn(1,2,3,2)
-   Y=X.permute(1,0,2,3).contiguous()
-   print(Y.shape)
-   print(X.shape)
+   df = pd.read_hdf('data/metr-la.h5')
+   y=df.index.values
+   z=df.index.values.astype("datetime64[D]")
+   t=y-z
+   x=t/t[1]
+   x = np.tile(x, [1, 10, 1]).transpose((2, 1, 0))
+   print(x[0,:,:])
 
 
 
