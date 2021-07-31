@@ -42,7 +42,6 @@ class Transformer(nn.Module):
         xin = self.positionEmbedding(X)  # Tin*batch*dmodel
         tx=self.timeEmbed(tx) # bacth*Tin*dmodel
         xin=xin+tx.permute(1,0,2).contiguous()
-        xin=self.dropout(xin)
         encoder_output = self.encoder(xin) # Tin*batch*dmodel
 
         # decoder 一步预测
