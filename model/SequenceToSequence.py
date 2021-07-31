@@ -93,8 +93,8 @@ class Seq2Seq(nn.Module):
         for i in range(target_len):
             # 对decoder_input做一次图卷积
             decoder_input = self.GCN(decoder_input.permute(1, 2, 0).contiguous())  # 1*batch*N
-            if i>0:
-                decoder_input = decoder_input + ty[i-1, ...].unsqueeze(dim=0)
+            # if i>0:
+            #     decoder_input = decoder_input + ty[i-1, ...].unsqueeze(dim=0)
             # if i>0:
             #     decoder_input=torch.cat([decoder_input.unsqueeze(dim=3),y[i-1:i,...,1:]],dim=3) # 1*batch*N*2
             #     decoder_input=self.dimCNN(decoder_input.permute(1,3,2,0).contiguous()).squeeze(dim=1) # batch*N*1
