@@ -23,7 +23,7 @@ class Transformer(nn.Module):
         # 输出层
         self.projection=nn.Linear(Tin,Tout)
         # timeEmbedding
-        self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=dmodel)
+        self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=dmodel,dropout=dropout)
 
     def forward(self, X, Y,tx,ty, teacher_forcing_ratio):
         """
@@ -41,8 +41,8 @@ class Transformer(nn.Module):
 
         xin = self.positionEmbedding(X)  # Tin*batch*dmodel
         tx=self.timeEmbed(tx) # bacth*Tin*dmodel
-        tx=self.dropout(tx)
         xin=xin+tx.permute(1,0,2).contiguous()
+        xin=self.dropout(xin)
         encoder_output = self.encoder(xin) # Tin*batch*dmodel
 
         # decoder 一步预测

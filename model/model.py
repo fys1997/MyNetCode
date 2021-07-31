@@ -48,8 +48,8 @@ class mixNet(nn.Module):
                                           device=device,Tout=outputT,Tin=T,num_embedding=args.num_embedding)
         # self.transformerLinear = nn.Linear(self.outputT, self.outputT)
         # 定义batchNorm
-        # self.batchnormS2S=nn.BatchNorm2d(num_features=1)
-        # self.batchnormTran=nn.BatchNorm2d(num_features=1)
+        self.batchnormS2S=nn.BatchNorm2d(num_features=1)
+        self.batchnormTran=nn.BatchNorm2d(num_features=1)
         self.predict=nn.Linear(in_features=3*outputT+self.arSize if self.arSize>0 else 2*outputT+self.arSize,out_features=outputT)
 
     def forward(self, X, Y, teacher_forcing_ratio):
@@ -74,13 +74,13 @@ class mixNet(nn.Module):
         # Seq2Seq GRU部分
         y1 = self.seq2seq(Hout,vy, tx, ty, teacher_forcing_ratio=teacher_forcing_ratio)  # outputT*batch*N
         y1 = y1.permute(1, 2, 0).contiguous()  # batch*N*outputT
-        # y1 = self.batchnormS2S(y1.unsqueeze(dim=1)).squeeze(dim=1)
+        y1 = self.batchnormS2S(y1.unsqueeze(dim=1)).squeeze(dim=1)
         y1 = torch.relu(y1) # batch*N*outputT
         # y1 = self.gruLinear(y1)
 
         # Transformer部分
         y2 = self.transformer(Hout,vy,tx,ty, teacher_forcing_ratio=teacher_forcing_ratio)  # batch*N*outputT
-        # y2 = self.batchnormTran(y2.unsqueeze(dim=1)).squeeze(dim=1)
+        y2 = self.batchnormTran(y2.unsqueeze(dim=1)).squeeze(dim=1)
         y2=torch.relu(y2) # batch*N*outputT
         # y2 = self.transformerLinear(y2)  # batch*N*outputT
 
@@ -89,6 +89,5 @@ class mixNet(nn.Module):
         if self.arSize>0:
             y3 = self.tcn(Hout) # batch*N*outputT
         y=torch.cat([y1,y2,y3,X[:,:,-self.arSize:,0]],dim=2)
-        y=self.dropout(y)
         y=self.predict(y)
         return y
