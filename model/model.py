@@ -50,7 +50,7 @@ class mixNet(nn.Module):
         # 定义batchNorm
         self.batchnormS2S=nn.BatchNorm2d(num_features=1)
         self.batchnormTran=nn.BatchNorm2d(num_features=1)
-        self.predict=nn.Linear(in_features=2*outputT+self.arSize if self.arSize>0 else 2*outputT+self.arSize,out_features=outputT)
+        self.predict=nn.Linear(in_features=3*outputT+self.arSize if self.arSize>0 else 2*outputT+self.arSize,out_features=outputT)
 
     def forward(self, X, Y, teacher_forcing_ratio):
         """
@@ -85,10 +85,10 @@ class mixNet(nn.Module):
         # y2 = self.transformerLinear(y2)  # batch*N*outputT
 
         # TCN部分
-        # y3=0
-        # if self.arSize>0:
-        #     y3 = self.tcn(Hout) # batch*N*outputT
-        y=torch.cat([y1,y2,X[:,:,-self.arSize:,0]],dim=2)
+        y3=0
+        if self.arSize>0:
+            y3 = self.tcn(Hout) # batch*N*outputT
+        y=torch.cat([y1,y2,y3,X[:,:,-self.arSize:,0]],dim=2)
         y=self.dropout(y)
         y=self.predict(y)
         return y
