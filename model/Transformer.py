@@ -21,7 +21,7 @@ class Transformer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.Tout=Tout
         # 输出层
-        self.projection=nn.Linear(Tin+Tout,Tin+Tout)
+        self.projection=nn.Linear(Tin,Tout)
         # timeEmbedding
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=dmodel)
 
@@ -47,15 +47,15 @@ class Transformer(nn.Module):
         encoder_output = self.encoder(xin) # Tin*batch*dmodel
 
         # decoder 一步预测
-        ty=self.timeEmbed(ty) # batch*Tout*dmodel
-        ty=ty.permute(1,0,2).contiguous() # Tout*batch*dmodel
-        decoder_input = torch.cat([encoder_output,ty],dim=0) # (Tin+Tout)*batch*dmodel
+        # ty=self.timeEmbed(ty) # batch*Tout*dmodel
+        # ty=ty.permute(1,0,2).contiguous() # Tout*batch*dmodel
+        # decoder_input = torch.cat([encoder_output,ty],dim=0) # (Tin+Tout)*batch*dmodel
         # target_len = Y.shape[0]
         # Y=self.positionEmbedding(Y)
         # tgt_mask = nn.Transformer().generate_square_subsequent_mask(target_len).to(self.device)
         # decoder_output=self.decoder(tgt=Y,tgt_mask=tgt_mask,memory=encoder_output)
-        decoder_output=self.projection(decoder_input.permute(1,2,0).contiguous()) # batch*dmodel*(Tin+Tout)
+        decoder_output=self.projection(encoder_output.permute(1,2,0).contiguous()) # batch*dmodel*(Tin+Tout)
 
 
         decoder_output = self.transformerCNN2(decoder_output)  # batch*N*(Tin+Tout)
-        return decoder_output[...,-self.Tout:] # batch*N*Tout
+        return decoder_output # batch*N*Tout
