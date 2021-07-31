@@ -36,13 +36,12 @@ class Transformer(nn.Module):
         :return:
         """
         X=X.permute(2,1,0).contiguous() # Tin*N*batch
-        Y=Y.permute(2,1,0).contiguous() # Tout*N*batch
         X = self.transformerCNN1(X)  # Tin*dmodel*batch
-        Y = self.transformerCNN1(Y)  # Tout*dmodel*batch
         X=X.permute(0,2,1).contiguous() # Tin*batch*dmodel
-        Y=Y.permute(0,2,1).contiguous() # Tout*batch*dmodel
+
         xin = self.positionEmbedding(X)  # Tin*batch*dmodel
         tx=self.timeEmbed(tx) # bacth*Tin*dmodel
+        tx=self.dropout(tx)
         xin=xin+tx.permute(1,0,2).contiguous()
         encoder_output = self.encoder(xin) # Tin*batch*dmodel
 

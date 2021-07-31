@@ -83,12 +83,12 @@ class Seq2Seq(nn.Module):
         batch_size=x.shape[1]
         target_len=y.shape[0]
         outputs=torch.zeros(y.shape).to(self.device)
-        tx=self.timeEmbed(tx) # batch*Tin*N
-        tx=tx.permute(1,0,2).contiguous() # Tin*batch*N
+        # tx=self.timeEmbed(tx) # batch*Tin*N
+        # tx=tx.permute(1,0,2).contiguous() # Tin*batch*N
         # ty=self.timeEmbed(ty) # batch*Tout*N
         # ty=ty.permute(1,0,2).contiguous() # Tout*batch*N
 
-        _,hidden=self.encoder(x+tx) # 得到_做attention以避免误差累加 其中_:[Tin*batch*N] hidden:[n_layers*batch*N]
+        _,hidden=self.encoder(x) # 得到_做attention以避免误差累加 其中_:[Tin*batch*N] hidden:[n_layers*batch*N]
         decoder_input=x[-1:,:,:]
         for i in range(target_len):
             # 对decoder_input做一次图卷积
