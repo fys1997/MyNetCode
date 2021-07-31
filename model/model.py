@@ -89,6 +89,5 @@ class mixNet(nn.Module):
         if self.arSize>0:
             y3 = self.tcn(Hout) # batch*N*outputT
         y=torch.cat([y1,y2,y3,X[:,:,-self.arSize:,0]],dim=2)
-        y=self.dropout(y)
         y=self.predict(y)
         return y
