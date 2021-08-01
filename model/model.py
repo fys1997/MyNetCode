@@ -72,17 +72,15 @@ class mixNet(nn.Module):
         Hout=Hout.permute(1,2,0).contiguous() # [batch*N*Tin]
 
         # Seq2Seq GRU部分
-        Hout = self.batchnormS2S(Hout.unsqueeze(dim=1)).squeeze(dim=1)
         y1 = self.seq2seq(Hout,vy, tx, ty, teacher_forcing_ratio=teacher_forcing_ratio)  # outputT*batch*N
         y1 = y1.permute(1, 2, 0).contiguous()  # batch*N*outputT
-        # y1 = self.batchnormS2S(y1.unsqueeze(dim=1)).squeeze(dim=1)
+        y1 = self.batchnormS2S(y1.unsqueeze(dim=1)).squeeze(dim=1)
         y1 = torch.relu(y1) # batch*N*outputT
         # y1 = self.gruLinear(y1)
 
         # Transformer部分
-        Hout =self.batchnormTran(Hout.unsqueeze(dim=1)).squeeze(dim=1)
         y2 = self.transformer(Hout,vy,tx,ty, teacher_forcing_ratio=teacher_forcing_ratio)  # batch*N*outputT
-        # y2 = self.batchnormTran(y2.unsqueeze(dim=1)).squeeze(dim=1)
+        y2 = self.batchnormTran(y2.unsqueeze(dim=1)).squeeze(dim=1)
         y2=torch.relu(y2) # batch*N*outputT
         # y2 = self.transformerLinear(y2)  # batch*N*outputT
 

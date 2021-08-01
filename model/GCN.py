@@ -52,14 +52,12 @@ class GCN(nn.Module):
             H = torch.cat(H, dim=2)  # batch*N*(T*(hops+1))
             Hout = self.gcnLinear(H)  # batch*N*T
             Hout = torch.sigmoid(X + Hout) * torch.tanh(X + Hout)
-            # Hout = self.dropout(Hout)
-            Hout = Hout.permute(2, 0, 1).contiguous() # T*batch*N
+            Hout = self.dropout(Hout).permute(2, 0, 1).contiguous()  # T*batch*N
         else:
             Hout = Hbefore
             for k in range(self.hops):
                 Hout = torch.einsum("ik,bkj->bij", (A, Hout))  # batch*N*T A*H
                 Hout = self.tradGcnW[k](Hout)  # batch*N*T A*H*W
                 Hout = F.relu(Hout)  # relu(A*H*w)
-            # Hout = self.dropout(Hout)
-            Hout = Hout.permute(2, 0, 1).contiguous()  # T*batch*N
+            Hout = self.dropout(Hout).permute(2, 0, 1).contiguous()  # T*batch*N
         return Hout
