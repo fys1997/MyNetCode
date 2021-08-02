@@ -13,6 +13,8 @@ class GCN(nn.Module):
         self.hops = hops
         self.tradGcn = tradGcn
         self.dropout = nn.Dropout(p=dropout)
+        # 门
+        self.gate=nn.Linear(in_features=2*T,out_features=T)
         # 运用传统图卷积
         self.tradGcn = tradGcn
         if tradGcn:
@@ -44,14 +46,14 @@ class GCN(nn.Module):
         # 开始图卷积部分
         if self.tradGcn == False:
             for k in range(self.hops):
-                Hnow = torch.sigmoid(X + torch.einsum("ik,bkj->bij", (A, Hbefore))) * torch.tanh(
-                    X + torch.einsum("ik,bkj->bij", (A, Hbefore)))
-                Hnow = Hnow.contiguous()
+                Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
+                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*T
+                z=F.sigmoid(self.gate(gateInput)) # batch*node*T
+                Hnow=z*Hnow+(1-z)*X # batch*node*T
                 H.append(Hnow)
                 Hbefore = Hnow
             H = torch.cat(H, dim=2)  # batch*N*(T*(hops+1))
             Hout = self.gcnLinear(H)  # batch*N*T
-            Hout = torch.sigmoid(X + Hout) * torch.tanh(X + Hout)
             Hout = self.dropout(Hout).permute(2, 0, 1).contiguous()  # T*batch*N
         else:
             Hout = Hbefore
