@@ -30,6 +30,7 @@ class GcnEncoderCell(nn.Module):
         # 对mutliheadAttention的输入做一个维度变换以保证他是2的幂次
         self.multiAttCNN1=nn.Conv1d(in_channels=N,out_channels=dmodel,kernel_size=1)
         self.multiAttCNN2=nn.Conv1d(in_channels=dmodel,out_channels=N,kernel_size=1)
+        self.device=device
         #
         self.gate=nn.Linear(in_features=2,out_features=1)
 
@@ -45,7 +46,7 @@ class GcnEncoderCell(nn.Module):
         # gcn提取空间特征
         spaceAttenX=self.Gcn(x.permute(1,2,0).contiguous()) # 1*batch*N
         # 做temporalAttention
-        temporalInput=torch.zeros_like(tXin) # [tBefore*batch*N]
+        temporalInput=torch.zeros_like(tXin).to(self.device) # [tBefore*batch*N]
         for i in range(tXin.size(0)-1):
             f2input=torch.cat([tXin[i,...].unsqueeze(dim=0),tHidden[i,...].unsqueeze(dim=0)]) # 2*batch*N
             f2output=F.relu(self.f2(f2input.permute(1,2,0).contiguous()).permute(2,0,1).contiguous()) # 1*batch*N
@@ -57,7 +58,7 @@ class GcnEncoderCell(nn.Module):
         temporalInput=self.multiAttCNN1(temporalInput.permute(1,2,0).contiguous()) # batch*dmodel*tBefore
         temporalInput=temporalInput.permute(2,0,1).contiguous() # tBefore*batch*dmodel
         # 计算atten_mask以及得到temporalOutput:[tBefore*batch*dmodel]
-        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(sz=temporalInput.size(0)) #tBefore*tBefore
+        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(sz=temporalInput.size(0)).to(self.device) #tBefore*tBefore
         temporalOutput,output_atten=self.temporalAttention.forward(query=temporalInput,key=temporalInput,value=temporalInput,attn_mask=atten_mask)
         # 做维度变换变回N
         temporalOutput=self.multiAttCNN2(temporalOutput.permute(1,2,0).contiguous())
