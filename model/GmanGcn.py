@@ -86,6 +86,7 @@ class GcnEncoder(nn.Module):
         self.GcnEncoderCell=GcnEncoderCell(N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,device=device,
                                            tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads)
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=embedding_dim,dropout=dropout)
+        self.device=device
 
     def forward(self,x,tx):
         """
@@ -98,8 +99,8 @@ class GcnEncoder(nn.Module):
         tx=self.timeEmbed(tx) # batch*T*N
         tx=tx.permute(1,0,2).contiguous() # T*batch*N
 
-        allHidden=torch.zeros_like(x) # T*batch*N
-        hidden=torch.zeros(1,x.size(1),x.size(2)) # 1*batch*N
+        allHidden=torch.zeros_like(x).to(self.device) # T*batch*N
+        hidden=torch.zeros(1,x.size(1),x.size(2)).to(self.device) # 1*batch*N
         embedX=x+tx # T*batch*N
         for i in range(x.size(0)):
             hidden=self.GcnEncoderCell(x[i].unsqueeze(dim=0),hidden,embedX[0:i+1,...],allHidden[0:i,...]) # 1*batch*N
