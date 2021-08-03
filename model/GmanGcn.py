@@ -35,8 +35,8 @@ class GcnEncoderCell(nn.Module):
         # 设置gate门
         self.gate=nn.Linear(in_features=2*Tin,out_features=Tin)
         # 设置图卷积层捕获空间特征
-        trainMatrix1=nn.Parameter(torch.randn(self.num_nodes, self.m).to(device), requires_grad=True).to(device)
-        trainMatrix2=nn.Parameter(torch.randn(self.m, self.num_nodes).to(device), requires_grad=True).to(device)
+        trainMatrix1=nn.Parameter(torch.randn(N, M).to(device), requires_grad=True).to(device)
+        trainMatrix2=nn.Parameter(torch.randn(M, N).to(device), requires_grad=True).to(device)
         self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
         self.spaceF=nn.Linear(2*Tin,Tin)
 
