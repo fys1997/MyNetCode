@@ -7,7 +7,7 @@ import model.PositionEmbedding as PE
 
 
 class GcnEncoderCell(nn.Module):
-    def __init__(self,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,dropout,dmodel,num_heads):
+    def __init__(self,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,dropout,dmodel,num_heads,Tin):
         """
 
         :param num_embedding: 有多少组时间，此处288
@@ -21,58 +21,64 @@ class GcnEncoderCell(nn.Module):
         :param dropout:
         :param dmodel:
         :param num_heads:
+        :param Tin: 输入时间的长度
         """
         super(GcnEncoderCell, self).__init__()
-        self.Gcn=GCN.GCN(T=1,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
         self.temporalAttention=nn.MultiheadAttention(embed_dim=dmodel,num_heads=num_heads,dropout=dropout)
-        self.f2=nn.Linear(in_features=2,out_features=1)
-        self.f1=nn.Linear(in_features=2,out_features=1)
+        self.f2=nn.Linear(in_features=2*Tin,out_features=Tin)
+        self.f1=nn.Linear(in_features=2*Tin,out_features=Tin)
+        self.f3=nn.Linear(in_features=Tin,out_features=Tin)
         # 对mutliheadAttention的输入做一个维度变换以保证他是2的幂次
         self.multiAttCNN1=nn.Conv1d(in_channels=N,out_channels=dmodel,kernel_size=1)
         self.multiAttCNN2=nn.Conv1d(in_channels=dmodel,out_channels=N,kernel_size=1)
         self.device=device
-        #
-        self.gate=nn.Linear(in_features=2,out_features=1)
+        # 设置gate门
+        self.gate=nn.Linear(in_features=2*Tin,out_features=Tin)
+        # 设置图卷积层捕获空间特征
+        self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
+        self.spaceF=nn.Linear(2*Tin,Tin)
 
-    def forward(self,x,hidden,tXin,tHidden):
+
+    def forward(self,x,hidden,tXin):
         """
 
-        :param x: 1*batch*N
-        :param hidden: 1*batch*N
-        :param tXin: 在此次时间之前的真实数据值（包括此次时间）tXin:[tBefore*batch*N]
-        :param tHidden : 在此次时间之前已输出的hidden(不包括此次时间)tHidden:[tBefore-1*batch*N]
+        :param x: 只含流量值的embed Tin*batch*N
+        :param hidden: 此次输入的hidden:[Tin*batch*N]
+        :param tXin: 加了timeEmbedding的x值：tXin:[Tin*batch*N]
         :return:
         """
-        # gcn提取空间特征
-        spaceAttenX=self.Gcn(x.permute(1,2,0).contiguous()) # 1*batch*N
-        # 做temporalAttention
-        temporalInput=torch.zeros_like(tXin).to(self.device) # [tBefore*batch*N]
-        for i in range(tXin.size(0)-1):
-            f2input=torch.cat([tXin[i,...].unsqueeze(dim=0),tHidden[i,...].unsqueeze(dim=0)]) # 2*batch*N
-            f2output=F.relu(self.f2(f2input.permute(1,2,0).contiguous()).permute(2,0,1).contiguous()) # 1*batch*N
-            temporalInput[i]=f2output
-        f1input=torch.cat([tXin[tXin.size(0)-1,...].unsqueeze(dim=0),hidden]) # 2*batch*N
-        f1output=F.relu(self.f1(f1input.permute(1,2,0).contiguous()).permute(2,0,1).contiguous()) # 1*batch*N
-        temporalInput[tXin.size(0)-1]=f1output # tBefore*batch*N
-        # 做维度变换
-        temporalInput=self.multiAttCNN1(temporalInput.permute(1,2,0).contiguous()) # batch*dmodel*tBefore
-        temporalInput=temporalInput.permute(2,0,1).contiguous() # tBefore*batch*dmodel
-        # 计算atten_mask以及得到temporalOutput:[tBefore*batch*dmodel]
-        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(sz=temporalInput.size(0)).to(self.device) #tBefore*tBefore
-        temporalOutput,output_atten=self.temporalAttention.forward(query=temporalInput,key=temporalInput,value=temporalInput,attn_mask=atten_mask)
-        # 做维度变换变回N
-        temporalOutput=self.multiAttCNN2(temporalOutput.permute(1,2,0).contiguous())
-        temporalOutput=temporalOutput.permute(2,0,1).contiguous() # tBefore*batch*N
-        #
-        temporalAttenT=temporalOutput[temporalOutput.size(0)-1,...].unsqueeze(dim=0) # 1*batch*N
+        # 先捕获空间依赖
+        gcnInput=torch.cat([x.permute(1,2,0).contiguous(),hidden.permute(1,2,0).contiguous()],dim=2) # batch*N*(2*Tin)
+        gcnInput=F.relu(self.spaceF(gcnInput)) # batch*N*Tin
+        gcnOutput=self.Gcn(gcnInput) # Tin*batch*N
+        # 捕获时间依赖
+        f2Input=torch.cat([hidden,tXin],dim=0) # (2Tin)*batch*N
+        key=F.relu(self.f2(f2Input.permute(1,2,0).contiguous())) # batch*N*Tin
+        key=self.multiAttCNN1(key) # batch*dmodel*Tin
+        key=key.permute(2,0,1).contiguous() # Tin*batch*dmodel
 
-        # 经过一个gate Fusion
-        attenSum=torch.cat([spaceAttenX,temporalAttenT],dim=0) # 2*batch*N
-        z=F.sigmoid(self.gate(attenSum.permute(1,2,0).contiguous())) # batch*N*1
-        z=z.permute(2,0,1).contiguous() # 1*batch*N
-        finalHidden=z*spaceAttenX+(1-z)*temporalAttenT # 1*batch*N
+        f1Input=torch.cat([hidden,tXin],dim=0) # (2Tin)*batch*N
+        query=F.relu(self.f1(f1Input.permute(1,2,0).contiguous())) # batch*N*Tin
+        query=self.multiAttCNN1(query) # batch*dmodel*Tin
+        query=query.permute(2,0,1).contiguous() # Tin*batch*dmodel
 
-        return finalHidden
+        value=F.relu(self.f3(hidden.permute(1,2,0).contiguous())) # batch*N*Tin
+        value=self.multiAttCNN1(value) # batch*dmodel*Tin
+        value=value.permute(2,0,1).contiguous() # Tin*batch*dmodel
+
+        # 做attention
+        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(value.size(0))
+        atten_output,atten=self.temporalAttention.forward(query=query,key=key,value=value,attn_mask=atten_mask) # Tin*batch*dmodel
+        atten_output=atten_output.permute(1,2,0).contiguous() # batch*dmodel*Tin
+        atten_output=self.multiAttCNN2(atten_output) # batch*N*Tin
+
+        # 做gate
+        gcnOutput=gcnOutput.permute(1,2,0).contiguous() # batch*N*Tin
+        gateInput=torch.cat([gcnOutput,atten_output],dim=2) # batch*N*2Tin
+        z=torch.sigmoid(self.gate(gateInput)) # batch*N*Tin
+        finalHidden=z*gcnOutput+(1-z)*atten_output # batch*N*Tin
+
+        return finalHidden.permute(2,0,1).contiguous() # Tin*batch*N
 
     @staticmethod
     def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
@@ -82,12 +88,15 @@ class GcnEncoderCell(nn.Module):
 
 class GcnEncoder(nn.Module):
     def __init__(self,num_embedding,embedding_dim,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,
-                 dropout,dmodel,num_heads):
+                 dropout,dmodel,num_heads,Tin,encoderBlocks):
         super(GcnEncoder, self).__init__()
-        self.GcnEncoderCell=GcnEncoderCell(N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,device=device,
-                                           tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads)
+        self.encoderBlock=nn.ModuleList()
+        for i in range(encoderBlocks):
+            self.encoderBlock.append(GcnEncoderCell(N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,device=device,
+                                           tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads,Tin=Tin))
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=embedding_dim,dropout=dropout)
         self.device=device
+        self.encoderBlocks=encoderBlocks
 
     def forward(self,x,tx):
         """
@@ -100,13 +109,11 @@ class GcnEncoder(nn.Module):
         tx=self.timeEmbed(tx) # batch*T*N
         tx=tx.permute(1,0,2).contiguous() # T*batch*N
 
-        allHidden=torch.zeros_like(x).to(self.device) # T*batch*N
-        hidden=torch.zeros(1,x.size(1),x.size(2)).to(self.device) # 1*batch*N
-        embedX=x+tx # T*batch*N
-        for i in range(x.size(0)):
-            hidden=self.GcnEncoderCell(x[i].unsqueeze(dim=0),hidden,embedX[0:i+1,...],allHidden[0:i,...]) # 1*batch*N
-            allHidden[i]=hidden
-        return allHidden,hidden
+        tXin=x+tx
+        hidden=x.clone()
+        for i in range(self.encoderBlocks):
+            hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=tXin) # Tin*batch*N
+        return hidden
 
 
 class GcnDecoder(nn.Module):

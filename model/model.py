@@ -29,7 +29,7 @@ class mixNet(nn.Module):
         # 定义GCNEncoder
         self.GcnEncoder=GG.GcnEncoder(num_embedding=args.num_embedding,embedding_dim=N,N=N,trainMatrix1=self.trainMatrix1,
                                       trainMatrix2=self.trainMatrix2,hops=self.hops,device=device,tradGcn=args.tradGcn,
-                                      dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head)
+                                      dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks)
         self.GcnDecoder=GG.GcnDecoder(dmodel=args.dmodel,cnn_in_channels=N,cnn_out_channels=args.dmodel,
                                       nhead=args.head,num_layers=args.transformerLayers,dropout=args.dropout,
                                       device=device,Tout=outputT,Tin=T,num_embedding=args.num_embedding)
@@ -48,7 +48,7 @@ class mixNet(nn.Module):
         Y=Y.permute(1,2,0,3).contiguous() # batch*node*Tout*2
         ty=Y[:,0,:,1] # batch*T 表示Y的时间index
         # 开始encoder
-        output,hidden=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx) # T*batch*N
+        output=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx) # T*batch*N
         result=self.GcnDecoder(output,ty) # batch*N*Tout
         result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         result=self.predict(result)
