@@ -48,7 +48,7 @@ class GcnEncoderCell(nn.Module):
         :return:
         """
         # 先捕获空间依赖
-        gcnInput=torch.cat([x.permute(1,2,0).contiguous(),hidden.permute(1,2,0).contiguous()],dim=2) # batch*N*(2*Tin)
+        gcnInput=torch.cat([tXin.permute(1,2,0).contiguous(),hidden.permute(1,2,0).contiguous()],dim=2) # batch*N*(2*Tin)
         gcnInput=F.relu(self.spaceF(gcnInput)) # batch*N*Tin
         gcnOutput=self.Gcn(gcnInput) # Tin*batch*N
         # 捕获时间依赖
