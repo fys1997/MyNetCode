@@ -67,7 +67,7 @@ class GcnEncoderCell(nn.Module):
         value=value.permute(2,0,1).contiguous() # Tin*batch*dmodel
 
         # 做attention
-        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(value.size(0))
+        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(value.size(0)).to(self.device)
         atten_output,atten=self.temporalAttention.forward(query=query,key=key,value=value,attn_mask=atten_mask) # Tin*batch*dmodel
         atten_output=atten_output.permute(1,2,0).contiguous() # batch*dmodel*Tin
         atten_output=self.multiAttCNN2(atten_output) # batch*N*Tin
