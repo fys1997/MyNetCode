@@ -48,7 +48,7 @@ class GCN(nn.Module):
             for k in range(self.hops):
                 Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
                 gateInput=torch.cat([X,Hnow],dim=2) # batch*node*T
-                z=F.sigmoid(self.gate(gateInput)) # batch*node*T
+                z=torch.sigmoid(self.gate(gateInput)) # batch*node*T
                 Hnow=z*Hnow+(1-z)*X # batch*node*T
                 H.append(Hnow)
                 Hbefore = Hnow

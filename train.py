@@ -21,10 +21,10 @@ parser.add_argument('--epochs',type=int,default=20,help='')
 parser.add_argument('--print_every',type=int,default=100,help='')
 parser.add_argument('--save',type=str,default='modelSave/metr-12.pt',help='save path')
 parser.add_argument('--tradGcn',type=bool,default=False,help='whether use tradGcn')
-parser.add_argument('--dmodel',type=int,default=256,help='transformerEncoder dmodel')
+parser.add_argument('--dmodel',type=int,default=64,help='transformerEncoder dmodel')
 parser.add_argument('--n_layers',type=int,default=2,help='GRU n_layers')
 parser.add_argument('--num_embedding',type=int,default=288,help='')
-parser.add_argument('--encoderBlocks',type=int,default=4,help=' encoder block numbers')
+parser.add_argument('--encoderBlocks',type=int,default=8,help=' encoder block numbers')
 
 args=parser.parse_args()
 
