@@ -48,7 +48,7 @@ class mixNet(nn.Module):
         Y=Y.permute(1,2,0,3).contiguous() # batch*node*Tout*2
         ty=Y[:,0,:,1] # batch*T 表示Y的时间index
         # 开始encoder
-        output=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx) # T*batch*N
+        output,ty=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx,ty) # T*batch*N
         result=self.GcnDecoder(output,ty) # batch*N*Tout
         result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         result=self.predict(result)

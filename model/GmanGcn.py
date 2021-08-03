@@ -97,8 +97,11 @@ class GcnEncoder(nn.Module):
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=embedding_dim,dropout=dropout)
         self.device=device
         self.encoderBlocks=encoderBlocks
+        self.bn=nn.ModuleList()
+        for i in range(encoderBlocks):
+            self.bn.append(nn.BatchNorm1d(num_features=N))
 
-    def forward(self,x,tx):
+    def forward(self,x,tx,ty):
         """
 
         :param x: 流量数据:[batch*T*N]
@@ -108,6 +111,7 @@ class GcnEncoder(nn.Module):
         x=x.permute(1,0,2).contiguous() # T*batch*N
         tx=self.timeEmbed(tx) # batch*T*N
         tx=tx.permute(1,0,2).contiguous() # T*batch*N
+        ty=self.timeEmbed(ty) # batch*T*N
 
         tXin=x+tx
         hidden=x.clone()
@@ -115,7 +119,9 @@ class GcnEncoder(nn.Module):
         for i in range(self.encoderBlocks):
             hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=tXin) # Tin*batch*N
             skip=skip+hidden
-        return skip
+            hidden=self.bn[i](hidden.permute(1,2,0).contiguous()) # batch*N*Tin
+            hidden=hidden.permute(2,0,1).contiguous()
+        return skip,ty
 
 
 class GcnDecoder(nn.Module):
@@ -138,10 +144,10 @@ class GcnDecoder(nn.Module):
         """
 
         :param x: # Tin*batch*N
-        :param ty: batch*Tout
+        :param ty: batch*Tout*N
         :return:
         """
-        ty=self.timeEmbed(ty) # batch*Tout*N
+        # ty=self.timeEmbed(ty) # batch*Tout*N
 
         x=self.decoderCNN1(x.permute(1,2,0).contiguous()) # batch*dmodel*T
 
