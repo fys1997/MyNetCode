@@ -37,8 +37,6 @@ class GcnEncoderCell(nn.Module):
         # 设置图卷积层捕获空间特征
         self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
         self.spaceF=nn.Linear(2*Tin,Tin)
-        # 设置TSCNN
-        self.tsCNN=TSCNN(Tin=Tin,N=N,device=device)
 
 
     def forward(self,x,hidden,tXin):
@@ -74,12 +72,11 @@ class GcnEncoderCell(nn.Module):
         atten_output=atten_output.permute(1,2,0).contiguous() # batch*dmodel*Tin
         atten_output=self.multiAttCNN2(atten_output) # batch*N*Tin
 
-        # tsCNN
-        tsCnnOutput=self.tsCNN(hidden.permute(1,2,0).contiguous()) # batch*N*Tin
-
         # 做gate
         gcnOutput=gcnOutput.permute(1,2,0).contiguous() # batch*N*Tin
-        finalHidden=torch.sigmoid(tsCnnOutput*torch.sigmoid(gcnOutput+atten_output)+gcnOutput*torch.sigmoid(tsCnnOutput+atten_output)+atten_output*torch.sigmoid(tsCnnOutput+gcnOutput))
+        gateInput=torch.cat([gcnOutput,atten_output],dim=2) # batch*N*2Tin
+        z=torch.sigmoid(self.gate(gateInput)) # batch*N*Tin
+        finalHidden=z*gcnOutput+(1-z)*atten_output # batch*N*Tin
 
         return finalHidden.permute(2,0,1).contiguous() # Tin*batch*N
 
@@ -100,9 +97,6 @@ class GcnEncoder(nn.Module):
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=embedding_dim,dropout=dropout)
         self.device=device
         self.encoderBlocks=encoderBlocks
-        self.bn=nn.ModuleList()
-        for i in range(encoderBlocks):
-            self.bn.append(nn.BatchNorm1d(num_features=N))
 
     def forward(self,x,tx,ty):
         """
@@ -118,12 +112,10 @@ class GcnEncoder(nn.Module):
 
         tXin=x+tx
         hidden=x.clone()
-        skip=0
+        skip=x.clone()
         for i in range(self.encoderBlocks):
             hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=tXin) # Tin*batch*N
             skip=skip+hidden
-            hidden=self.bn[i](hidden.permute(1,2,0).contiguous()) # batch*N*Tin
-            hidden=hidden.permute(2,0,1).contiguous()
         return skip,ty
 
 
@@ -166,29 +158,6 @@ class GcnDecoder(nn.Module):
         output=self.predict(input) # batch*N*Tout
         return output
 
-
-class TSCNN(nn.Module):
-    def __init__(self,Tin,N,device):
-        super(TSCNN, self).__init__()
-        self.Tin=Tin
-        self.N=N
-        self.device=device
-        self.CNN=nn.ModuleList()
-        for i in range(Tin):
-            self.CNN.append(nn.Conv2d(in_channels=1,out_channels=N,kernel_size=[N,i+1]))
-
-    def forward(self,x):
-        """
-        :param x: batch*N*Tin
-        :return: batch*N*Tin
-        """
-        y=torch.zeros_like(x).to(self.device)
-        for i in range(self.Tin):
-            input=x[...,0:i+1].clone() # batch*N*t
-            output=self.CNN[i](input.unsqueeze(dim=1)) # batch*N*1*1
-            output=output.squeeze(dim=3) # batch*N*1
-            y[...,i]=output.squeeze(dim=2)
-        return y
 
 
 

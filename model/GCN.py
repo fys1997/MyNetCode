@@ -23,6 +23,13 @@ class GCN(nn.Module):
                 self.tradGcnW.append(nn.Linear(self.T, self.T))
         else:
             self.gcnLinear = nn.Linear(self.T * (self.hops + 1), self.T)
+        # 设置low mid high filter的p与a
+        self.pLow=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aLow=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.pMiddle=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aMiddle=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.pHigh=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aHigh=nn.Parameter(torch.rand(1).to(device)).to(device)
 
     def forward(self,X):
         """
@@ -31,7 +38,8 @@ class GCN(nn.Module):
         :return: Hout:[T*batch*N]
         """
         adjMat = torch.mm(self.trainMatrix1, self.trainMatrix2)
-        adjMat = F.softmax(adjMat, dim=1) + torch.ones(adjMat.shape[0]).to(self.device)
+        adjMat = F.softmax(adjMat, dim=1)
+        I=torch.ones(adjMat.shape[0]).to(self.device)
         # 计算邻接矩阵的度矩阵
         rowsum = torch.sum(adjMat, dim=1)  # 每一行相加求和
         degreeMat = torch.pow(rowsum, -0.5)
@@ -40,14 +48,25 @@ class GCN(nn.Module):
         degreeMat = torch.diag(degreeMat)
         # D^-1/2*A*D^-1/2
         A = torch.mm(torch.mm(degreeMat, adjMat), degreeMat)
+
         H = list()
         H.append(X)
         Hbefore = X  # X batches*node*T
         # 开始图卷积部分
         if self.tradGcn == False:
             for k in range(self.hops):
-                Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
-                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*T
+                # low filter
+                HnowLow=torch.einsum("ik,bkj->bij", (self.pLow*(self.aLow*A+(1-self.aLow)*I), Hbefore)) # batch*node*T
+                # middle filter
+                HnowMiddle=torch.einsum("ik,bkj->bij", (self.pMiddle*(torch.pow(A,2)-self.aMiddle*I), Hbefore)) # batch*node*T
+                # High filter
+                HnowHigh=torch.einsum("ik,bkj->bij", (self.pHigh*(-self.aHigh*A+(1-self.aHigh)*I), Hbefore)) # batch*node*T
+                # gate
+                Hnow=torch.sigmoid(HnowLow*torch.sigmoid(HnowMiddle+HnowHigh)+HnowMiddle*torch.sigmoid(HnowLow+HnowHigh)
+                                   +HnowHigh*torch.sigmoid(HnowLow+HnowMiddle)) # batch*node*T
+
+                # Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
+                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*2T
                 z=torch.sigmoid(self.gate(gateInput)) # batch*node*T
                 Hnow=z*Hnow+(1-z)*X # batch*node*T
                 H.append(Hnow)
