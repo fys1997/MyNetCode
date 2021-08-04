@@ -29,7 +29,7 @@ class TCN(nn.Module):
         self.gcn_convs=nn.ModuleList()
         self.bn=nn.ModuleList()
         receptive_filed=1
-        T=Tin
+        T=Tin+1
         for b in range(blocks):
             additional_scope=kerner_size-1
             new_dilation=1
@@ -76,7 +76,8 @@ class TCN(nn.Module):
             except:
                 skip=0
             skip=s+skip
-            x=self.gcn_convs[i](x)
+            x=self.gcn_convs[i](x)# T*batch*N
+            x=x.permute(1,2,0).contiguous()
             x=x+residual[:,:,-x.size(2):]
             x=self.bn[i](x.unsqueeze(dim=1)).squeeze(dim=1)
         x=F.relu(skip) # skip:[batch*N*1]
