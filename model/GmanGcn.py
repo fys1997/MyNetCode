@@ -113,10 +113,14 @@ class GcnEncoder(nn.Module):
 
         tXin=x+tx
         hidden=x.clone()
-        skip=x.clone()
+        skip=0
+        beforeHidden=hidden.clone()
         for i in range(self.encoderBlocks):
             hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=tXin) # Tin*batch*N
-            skip=skip+hidden
+            skip = skip + hidden
+            hidden=hidden+beforeHidden
+            beforeHidden=hidden
+
         return skip,ty
 
 

@@ -54,7 +54,4 @@ class mixNet(nn.Module):
         result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         result=self.predict(result)
 
-
-
-
         return result
