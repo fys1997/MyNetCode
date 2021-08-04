@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import model.GCN as GCN
 
 
 class TCN(nn.Module):
-    def __init__(self,Tin,Tout,channels,blocks=4,kerner_size=2,dropout=0.1,layers=2):
+    def __init__(self,Tin,Tout,trainMatrix1,trainMatrix2,channels,device, hops, tradGcn=False,
+                 blocks=4,kerner_size=2,dropout=0.1,layers=2):
         """
         输入数据：[batch*N*T]
         :param Tin: 输入数据的time length
@@ -24,8 +26,10 @@ class TCN(nn.Module):
         self.gate_convs = nn.ModuleList()
         # self.residual_cons=nn.ModuleList()
         # self.skip_convs=nn.ModuleList()
+        self.gcn_convs=nn.ModuleList()
         self.bn=nn.ModuleList()
         receptive_filed=1
+        T=Tin
         for b in range(blocks):
             additional_scope=kerner_size-1
             new_dilation=1
@@ -35,9 +39,11 @@ class TCN(nn.Module):
                 # self.residual_convs.append(nn.Conv1d(in_channels=channels,out_channels=channels,kernel_size=1))
                 # self.skip_convs.append(nn.Conv1d(in_channels=channels,out_channels=channels,kernel_size=1))
                 self.bn.append(nn.BatchNorm2d(1))
+                T=T-kerner_size+1-new_dilation+1
                 new_dilation*=2
                 receptive_filed+=additional_scope
                 additional_scope*=2
+                self.gcn_convs.append(GCN.GCN(T=T,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,hops=hops,tradGcn=tradGcn,dropout=dropout))
         self.receptive_field=receptive_filed
         self.end_conv=nn.Conv1d(in_channels=1,out_channels=Tout,kernel_size=1,bias=True)
 
@@ -70,6 +76,7 @@ class TCN(nn.Module):
             except:
                 skip=0
             skip=s+skip
+            x=self.gcn_convs[i](x)
             x=x+residual[:,:,-x.size(2):]
             x=self.bn[i](x.unsqueeze(dim=1)).squeeze(dim=1)
         x=F.relu(skip) # skip:[batch*N*1]
