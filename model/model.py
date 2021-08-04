@@ -29,8 +29,7 @@ class mixNet(nn.Module):
         # 定义GCNEncoder
         self.GcnEncoder=GG.GcnEncoder(num_embedding=args.num_embedding,embedding_dim=N,N=N,trainMatrix1=self.trainMatrix1,
                                       trainMatrix2=self.trainMatrix2,hops=self.hops,device=device,tradGcn=args.tradGcn,
-                                      dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks,
-                                      M=args.M)
+                                      dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks)
         self.GcnDecoder=GG.GcnDecoder(dmodel=args.dmodel,cnn_in_channels=N,cnn_out_channels=args.dmodel,
                                       nhead=args.head,num_layers=args.transformerLayers,dropout=args.dropout,
                                       device=device,Tout=outputT,Tin=T,num_embedding=args.num_embedding)

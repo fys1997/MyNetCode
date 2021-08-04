@@ -7,7 +7,7 @@ import model.PositionEmbedding as PE
 
 
 class GcnEncoderCell(nn.Module):
-    def __init__(self,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,dropout,dmodel,num_heads,Tin,M):
+    def __init__(self,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,dropout,dmodel,num_heads,Tin):
         """
 
         :param num_embedding: 有多少组时间，此处288
@@ -35,10 +35,10 @@ class GcnEncoderCell(nn.Module):
         # 设置gate门
         self.gate=nn.Linear(in_features=2*Tin,out_features=Tin)
         # 设置图卷积层捕获空间特征
-        trainMatrix1=nn.Parameter(torch.randn(N, M).to(device), requires_grad=True).to(device)
-        trainMatrix2=nn.Parameter(torch.randn(M, N).to(device), requires_grad=True).to(device)
         self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
         self.spaceF=nn.Linear(2*Tin,Tin)
+        # 设置TSCNN
+        self.tsCNN=TSCNN(Tin=Tin,N=N,device=device)
 
 
     def forward(self,x,hidden,tXin):
@@ -50,7 +50,7 @@ class GcnEncoderCell(nn.Module):
         :return:
         """
         # 先捕获空间依赖
-        gcnInput=torch.cat([tXin.permute(1,2,0).contiguous(),hidden.permute(1,2,0).contiguous()],dim=2) # batch*N*(2*Tin)
+        gcnInput=torch.cat([x.permute(1,2,0).contiguous(),hidden.permute(1,2,0).contiguous()],dim=2) # batch*N*(2*Tin)
         gcnInput=F.relu(self.spaceF(gcnInput)) # batch*N*Tin
         gcnOutput=self.Gcn(gcnInput) # Tin*batch*N
         # 捕获时间依赖
@@ -74,11 +74,12 @@ class GcnEncoderCell(nn.Module):
         atten_output=atten_output.permute(1,2,0).contiguous() # batch*dmodel*Tin
         atten_output=self.multiAttCNN2(atten_output) # batch*N*Tin
 
+        # tsCNN
+        tsCnnOutput=self.tsCNN(hidden.permute(1,2,0).contiguous()) # batch*N*Tin
+
         # 做gate
         gcnOutput=gcnOutput.permute(1,2,0).contiguous() # batch*N*Tin
-        gateInput=torch.cat([gcnOutput,atten_output],dim=2) # batch*N*2Tin
-        z=torch.sigmoid(self.gate(gateInput)) # batch*N*Tin
-        finalHidden=z*gcnOutput+(1-z)*atten_output # batch*N*Tin
+        finalHidden=torch.sigmoid(tsCnnOutput*torch.sigmoid(gcnOutput+atten_output)+gcnOutput*torch.sigmoid(tsCnnOutput+atten_output)+atten_output*torch.sigmoid(tsCnnOutput+gcnOutput))
 
         return finalHidden.permute(2,0,1).contiguous() # Tin*batch*N
 
@@ -90,12 +91,12 @@ class GcnEncoderCell(nn.Module):
 
 class GcnEncoder(nn.Module):
     def __init__(self,num_embedding,embedding_dim,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,
-                 dropout,dmodel,num_heads,Tin,encoderBlocks,M):
+                 dropout,dmodel,num_heads,Tin,encoderBlocks):
         super(GcnEncoder, self).__init__()
         self.encoderBlock=nn.ModuleList()
         for i in range(encoderBlocks):
             self.encoderBlock.append(GcnEncoderCell(N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,device=device,
-                                           tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads,Tin=Tin,M=M))
+                                           tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads,Tin=Tin))
         self.timeEmbed=TE.timeEmbedding(num_embedding=num_embedding,embedding_dim=embedding_dim,dropout=dropout)
         self.device=device
         self.encoderBlocks=encoderBlocks
@@ -164,5 +165,30 @@ class GcnDecoder(nn.Module):
         input=torch.cat([x,ty],dim=2) # batch*N*(Tin+Tout)
         output=self.predict(input) # batch*N*Tout
         return output
+
+
+class TSCNN(nn.Module):
+    def __init__(self,Tin,N,device):
+        super(TSCNN, self).__init__()
+        self.Tin=Tin
+        self.N=N
+        self.device=device
+        self.CNN=nn.ModuleList()
+        for i in range(Tin):
+            self.CNN.append(nn.Conv2d(in_channels=1,out_channels=N,kernel_size=[N,i+1]))
+
+    def forward(self,x):
+        """
+        :param x: batch*N*Tin
+        :return: batch*N*Tin
+        """
+        y=torch.zeros_like(x).to(self.device)
+        for i in range(self.Tin):
+            input=x[...,0:i+1].clone() # batch*N*t
+            output=self.CNN[i](input.unsqueeze(dim=1)) # batch*N*1*1
+            output=output.squeeze(dim=3) # batch*N*1
+            y[...,i]=output.squeeze(dim=2)
+        return y
+
 
 

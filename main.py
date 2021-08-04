@@ -18,8 +18,12 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    mask=generate_square_subsequent_mask(sz=2)
-    print(mask)
+    a=torch.randn(2,2)
+    li=nn.Linear(in_features=2,out_features=1)
+    b=li(a)
+    print(a.shape)
+    print(b.shape)
+
 
 
 
