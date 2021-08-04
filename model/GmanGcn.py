@@ -34,6 +34,7 @@ class GcnEncoderCell(nn.Module):
         self.device=device
         # 设置gate门
         self.gate=nn.Linear(in_features=2*Tin,out_features=Tin)
+        self.batchNorm=nn.BatchNorm2d(num_features=1)
         # 设置图卷积层捕获空间特征
         self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops)
         self.spaceF=nn.Linear(2*Tin,Tin)
@@ -75,7 +76,7 @@ class GcnEncoderCell(nn.Module):
         # 做gate
         gcnOutput=gcnOutput.permute(1,2,0).contiguous() # batch*N*Tin
         gateInput=torch.cat([gcnOutput,atten_output],dim=2) # batch*N*2Tin
-        z=torch.sigmoid(self.gate(gateInput)) # batch*N*Tin
+        z=torch.sigmoid(self.batchNorm(self.gate(gateInput).unsqueeze(dim=1)).squeeze(dim=1)) # batch*N*Tin
         finalHidden=z*gcnOutput+(1-z)*atten_output # batch*N*Tin
 
         return finalHidden.permute(2,0,1).contiguous() # Tin*batch*N

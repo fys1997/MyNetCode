@@ -34,9 +34,6 @@ class mixNet(nn.Module):
         self.GcnDecoder=GG.GcnDecoder(dmodel=args.dmodel,cnn_in_channels=N,cnn_out_channels=args.dmodel,
                                       nhead=args.head,num_layers=args.transformerLayers,dropout=args.dropout,
                                       device=device,Tout=outputT,Tin=T,num_embedding=args.num_embedding)
-        # TCN
-        self.TCN=TCN.TCN(Tin=T,Tout=outputT,trainMatrix1=self.trainMatrix1,trainMatrix2=self.trainMatrix2,channels=N,device=device,hops=self.hops,
-                         tradGcn=args.tradGcn,dropout=args.dropout)
         # predict layer
         self.predict=nn.Linear(in_features=outputT+self.arSize,out_features=outputT)
 
@@ -52,13 +49,12 @@ class mixNet(nn.Module):
         Y=Y.permute(1,2,0,3).contiguous() # batch*node*Tout*2
         ty=Y[:,0,:,1] # batch*T 表示Y的时间index
         # 开始encoder
-        # output,ty=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx,ty) # T*batch*N
-        # result=self.GcnDecoder(output,ty) # batch*N*Tout
-        # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
-        # result=self.predict(result)
+        output,ty=self.GcnEncoder(vx.permute(0,2,1).contiguous(),tx,ty) # T*batch*N
+        result=self.GcnDecoder(output,ty) # batch*N*Tout
+        result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
+        result=self.predict(result)
 
-        # 尝试TCN
-        result=self.TCN(vx)
+
 
 
         return result

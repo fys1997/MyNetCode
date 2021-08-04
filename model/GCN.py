@@ -15,6 +15,10 @@ class GCN(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
         # 门
         self.gate=nn.Linear(in_features=2*T,out_features=T)
+        # 设置batchnorm层
+        self.bn=nn.ModuleList()
+        for i in range(hops):
+            self.bn.append(nn.BatchNorm2d(num_features=1))
         # 运用传统图卷积
         self.tradGcn = tradGcn
         if tradGcn:
@@ -49,8 +53,8 @@ class GCN(nn.Module):
             for k in range(self.hops):
                 # low filter
                 Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
-                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*T
-                z=torch.sigmoid(self.gate(gateInput)) # batch*node*T
+                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*2T
+                z=torch.sigmoid(self.bn[k](self.gate(gateInput).unsqueeze(dim=1)).squeeze(dim=1)) # batch*node*T
                 Hnow=z*Hnow+(1-z)*X # batch*node*T
                 H.append(Hnow)
                 Hbefore = Hnow
