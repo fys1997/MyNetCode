@@ -49,7 +49,7 @@ class mixNet(nn.Module):
         # 开始encoder
         output,ty=self.GcnEncoder(X,tx,ty) # batch*N*Tin*dmodel
         result=self.GcnDecoder(output,ty) # batch*N*Tout
-        result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
-        result=self.predict(result)
+        # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
+        # result=self.predict(result)
 
         return result

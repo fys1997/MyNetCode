@@ -48,33 +48,34 @@ class GcnEncoderCell(nn.Module):
         :return:
         """
         # 先捕获空间依赖
-        gcnInput=torch.cat([x,hidden],dim=3) # batch*N*Tin*(2*dmodel)
-        gcnInput=self.spaceF(gcnInput) # batch*N*Tin*dmodel
-        gcnOutput=self.Gcn(gcnInput.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
-        gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
+        # gcnInput=torch.cat([x,hidden],dim=3) # batch*N*Tin*(2*dmodel)
+        # gcnInput=self.spaceF(gcnInput) # batch*N*Tin*dmodel
+        # gcnOutput=self.Gcn(gcnInput.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
+        # gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
         # 捕获时间依赖
-        f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        key=self.f2(f2Input) # batch*N*Tin*dmodel
+        #f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
+        key=self.f2(hidden) # batch*N*Tin*dmodel
 
-        f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        query=self.f1(f1Input)# batch*N*Tin*dmodel
+        #f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
+        query=self.f1(hidden)# batch*N*Tin*dmodel
 
-        f3Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        value=self.f3(f3Input) # batch*N*Tin*dmodel
+        #f3Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
+        value=self.f3(hidden) # batch*N*Tin*dmodel
 
         # 做attention
         atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).to(self.device) # batch*N*1*Tq*Ts
         out,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
-        gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
-        gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
-        gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
-        z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
-        finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
+        # gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
+        # gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
+        # gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
+        # z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
+        # finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
+        finalHidden=self.Gcn(out.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
         # finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
-        return finalHidden # batch*N*Tin*dmodel
+        return finalHidden.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
 
     @staticmethod
     def generate_square_subsequent_mask(B,N,T) -> torch.Tensor:
@@ -108,10 +109,12 @@ class GcnEncoder(nn.Module):
         x=self.xFull(x) # batch*N*Tin*dmodel
 
         hidden=x.clone() # batch*N*Tin*dmodel
+        skip=0
         for i in range(self.encoderBlocks):
             hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=x) # Tin*batch*N
+            skip=skip+hidden
 
-        return hidden,ty
+        return skip+x,ty
 
 
 class GcnDecoder(nn.Module):
