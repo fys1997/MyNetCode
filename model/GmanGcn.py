@@ -49,17 +49,17 @@ class GcnEncoderCell(nn.Module):
         """
         # 先捕获空间依赖
         gcnInput=torch.cat([x,hidden],dim=3) # batch*N*Tin*(2*dmodel)
-        gcnInput=F.relu(self.spaceF(gcnInput)) # batch*N*Tin*dmodel
+        gcnInput=F.leaky_relu(self.spaceF(gcnInput)) # batch*N*Tin*dmodel
         gcnOutput=self.Gcn(gcnInput.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
         gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
         # 捕获时间依赖
         f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        key=F.relu(self.f2(f2Input)) # batch*N*Tin*dmodel
+        key=F.leaky_relu(self.f2(f2Input)) # batch*N*Tin*dmodel
 
         f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        query=F.relu(self.f1(f1Input)) # batch*N*Tin*dmodel
+        query=F.leaky_relu(self.f1(f1Input)) # batch*N*Tin*dmodel
 
-        value=F.relu(self.f3(hidden)) # batch*N*Tin*dmodel
+        value=F.leaky_relu(self.f3(hidden)) # batch*N*Tin*dmodel
 
         # 做attention
         atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).to(self.device) # batch*N*1*Tq*Ts
