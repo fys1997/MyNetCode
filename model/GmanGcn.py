@@ -49,17 +49,17 @@ class GcnEncoderCell(nn.Module):
         """
         # 先捕获空间依赖
         gcnInput=torch.cat([x,hidden],dim=3) # batch*N*Tin*(2*dmodel)
-        gcnInput=F.leaky_relu(self.spaceF(gcnInput)) # batch*N*Tin*dmodel
+        gcnInput=self.spaceF(gcnInput) # batch*N*Tin*dmodel
         gcnOutput=self.Gcn(gcnInput.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
         gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
         # 捕获时间依赖
         f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        key=F.leaky_relu(self.f2(f2Input)) # batch*N*Tin*dmodel
+        key=self.f2(f2Input) # batch*N*Tin*dmodel
 
         f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        query=F.leaky_relu(self.f1(f1Input)) # batch*N*Tin*dmodel
+        query=self.f1(f1Input)# batch*N*Tin*dmodel
 
-        value=F.leaky_relu(self.f3(hidden)) # batch*N*Tin*dmodel
+        value=self.f3(hidden) # batch*N*Tin*dmodel
 
         # 做attention
         atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).to(self.device) # batch*N*1*Tq*Ts
@@ -123,7 +123,7 @@ class GcnEncoder(nn.Module):
 class GcnDecoder(nn.Module):
     def __init__(self,dmodel,Tout,Tin):
         super(GcnDecoder, self).__init__()
-        self.predict=nn.Linear(Tin+Tout,Tout)
+        self.predict=nn.Linear(Tin,Tout)
         self.yCNN=nn.Conv2d(in_channels=dmodel,out_channels=1,kernel_size=(1,1))
 
     def forward(self,x,ty):
@@ -133,11 +133,9 @@ class GcnDecoder(nn.Module):
         :param ty: batch*N*Tout*dmodel
         :return:
         """
-        y=torch.cat([x,ty],dim=2) # batch*N*(Tin+Tout)*dmodel
-        y=y.permute(0,1,3,2).contiguous() # batch*N*dmodel*(Tin+Tout)
-        y=self.predict(y) # batch*N*dmodel*Tout
-        y=self.yCNN(y.permute(0,2,1,3).contiguous()) # batch*1*N*Tout
-        return y.squeeze(dim=1) # batch*N*Tout
+        y=self.yCNN(x.permute(0,3,1,2).contiguous()) # batch*1*N*Tin
+        y=y.squeeze(dim=1) # batch*N*Tin
+        return self.predict(y) # batch*N*Tout
 
 
 class TemMulHeadAtte(nn.Module):
