@@ -150,8 +150,8 @@ class TemMulHeadAtte(nn.Module):
         d_keys=2*dmodel//num_heads
         d_values=dmodel//num_heads
 
-        self.query_projection=nn.Linear(in_features=dmodel,out_features=d_keys*num_heads)
-        self.key_projection=nn.Linear(in_features=dmodel,out_features=d_keys*num_heads)
+        self.query_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
+        self.key_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
         self.value_projection=nn.Linear(in_features=dmodel,out_features=d_values*num_heads)
         self.out_projection=nn.Linear(in_features=d_values*num_heads,out_features=dmodel)
 
