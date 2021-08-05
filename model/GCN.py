@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class GCN(nn.Module):
-    def __init__(self,T, trainMatrix1, trainMatrix2, device, hops, tradGcn=False, dropout=0.1):
+    def __init__(self,T, trainMatrix1, trainMatrix2, device, hops,dmodel, tradGcn=False, dropout=0.1):
         super().__init__()
         self.T=T
         self.trainMatrix1 = trainMatrix1
@@ -18,7 +18,7 @@ class GCN(nn.Module):
         # 设置batchnorm层
         self.bn=nn.ModuleList()
         for i in range(hops):
-            self.bn.append(nn.BatchNorm2d(num_features=1))
+            self.bn.append(nn.BatchNorm2d(num_features=dmodel))
         # 运用传统图卷积
         self.tradGcn = tradGcn
         if tradGcn:
@@ -31,8 +31,8 @@ class GCN(nn.Module):
     def forward(self,X):
         """
 
-        :param X: batch*node*T
-        :return: Hout:[T*batch*N]
+        :param X: batch*dmodel*node*T
+        :return: Hout:[batch*dmodel*node*T]
         """
         adjMat = torch.mm(self.trainMatrix1, self.trainMatrix2)
         adjMat = F.softmax(adjMat, dim=1)+torch.ones(adjMat.shape[0]).to(self.device)
@@ -47,25 +47,25 @@ class GCN(nn.Module):
 
         H = list()
         H.append(X)
-        Hbefore = X  # X batches*node*T
+        Hbefore = X  # X batches*dmodel*node*T
         # 开始图卷积部分
         if self.tradGcn == False:
             for k in range(self.hops):
-                # low filter
-                Hnow=torch.einsum("ik,bkj->bij", (A, Hbefore)) # batch*node*T
-                gateInput=torch.cat([X,Hnow],dim=2) # batch*node*2T
-                z=torch.sigmoid(self.bn[k](self.gate(gateInput).unsqueeze(dim=1)).squeeze(dim=1)) # batch*node*T
-                Hnow=z*Hnow+(1-z)*X # batch*node*T
+                # low filter nk,bdkt->bdnt
+                Hnow=torch.einsum("nk,bdkt->bdnt", (A, Hbefore)) # batch*dmodel*node*T
+                gateInput=torch.cat([X,Hnow],dim=3) # batch*dmodel*node*2T
+                z=torch.sigmoid(self.bn[k](self.gate(gateInput))) # batch*dmodel*node*T
+                Hnow=z*Hnow+(1-z)*X # batch*dmodel*node*T
                 H.append(Hnow)
                 Hbefore = Hnow
-            H = torch.cat(H, dim=2)  # batch*N*(T*(hops+1))
-            Hout = self.gcnLinear(H)  # batch*N*T
-            Hout = self.dropout(Hout).permute(2, 0, 1).contiguous()  # T*batch*N
+            H = torch.cat(H, dim=3)  # batch*dmodel*N*(T*(hops+1))
+            Hout = self.gcnLinear(H)  # batch*dmodel*N*T
+            Hout = self.dropout(Hout) # batch*dmodel*N*T
         else:
             Hout = Hbefore
             for k in range(self.hops):
-                Hout = torch.einsum("ik,bkj->bij", (A, Hout))  # batch*N*T A*H
-                Hout = self.tradGcnW[k](Hout)  # batch*N*T A*H*W
+                Hout = torch.einsum("nk,bdkt->bdnt", (A, Hout))  # batch*N*T A*H
+                Hout = self.tradGcnW[k](Hout)  # batch*dmodel*N*T A*H*W
                 Hout = F.relu(Hout)  # relu(A*H*w)
-            Hout = self.dropout(Hout).permute(2, 0, 1).contiguous()  # T*batch*N
+            Hout = self.dropout(Hout)  # batch*dmodel*N*T
         return Hout
