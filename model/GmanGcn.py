@@ -28,7 +28,7 @@ class GcnEncoderCell(nn.Module):
         self.temporalAttention=TemMulHeadAtte(dmodel=dmodel,num_heads=num_heads,dropout=dropout,device=device)
         self.f2=nn.Linear(in_features=2*dmodel,out_features=dmodel)
         self.f1=nn.Linear(in_features=2*dmodel,out_features=dmodel)
-        self.f3=nn.Linear(in_features=dmodel,out_features=dmodel)
+        self.f3=nn.Linear(in_features=2*dmodel,out_features=dmodel)
 
         self.device=device
         # 设置gate门
@@ -59,6 +59,7 @@ class GcnEncoderCell(nn.Module):
         f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
         query=self.f1(f1Input)# batch*N*Tin*dmodel
 
+        f3Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
         value=self.f3(hidden) # batch*N*Tin*dmodel
 
         # 做attention
@@ -107,12 +108,10 @@ class GcnEncoder(nn.Module):
         x=self.xFull(x) # batch*N*Tin*dmodel
 
         hidden=x.clone() # batch*N*Tin*dmodel
-        skip=0
         for i in range(self.encoderBlocks):
             hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=x) # Tin*batch*N
-            skip = skip + hidden
 
-        return skip+x,ty
+        return hidden,ty
 
 
 class GcnDecoder(nn.Module):
