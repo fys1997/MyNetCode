@@ -95,26 +95,21 @@ class GcnEncoder(nn.Module):
         self.device=device
         self.encoderBlocks=encoderBlocks
 
-        self.xCNN=nn.Conv2d(in_channels=1,out_channels=dmodel,kernel_size=(1,1))
+        self.xFull=nn.Linear(in_features=2,out_features=dmodel)
 
     def forward(self,x,tx,ty):
         """
 
-        :param x: 流量数据:[batch*N*Tin]
+        :param x: 流量数据:[batch*N*Tin*2]
         :param tx: 时间数据:[batch*N*Tin]
         :return:
         """
-        x=self.xCNN(x.unsqueeze(dim=1)) # batch*dmodel*N*Tin
-        x=x.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
+        x=self.xFull(x) # batch*N*Tin*dmodel
 
-        tx=self.timeEmbed(tx) # batch*N*Tin*dmodel
-        ty=self.timeEmbed(ty) # batch*N*Tout*dmodel
-
-        tXin=x+tx # batch*N*Tin*dmodel
         hidden=x.clone() # batch*N*Tin*dmodel
         skip=0
         for i in range(self.encoderBlocks):
-            hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=tXin) # Tin*batch*N
+            hidden=self.encoderBlock[i].forward(x=x,hidden=hidden,tXin=x) # Tin*batch*N
             skip = skip + hidden
 
         return skip+x,ty
@@ -124,7 +119,7 @@ class GcnDecoder(nn.Module):
     def __init__(self,dmodel,Tout,Tin):
         super(GcnDecoder, self).__init__()
         self.predict=nn.Linear(Tin,Tout)
-        self.yCNN=nn.Conv2d(in_channels=dmodel,out_channels=1,kernel_size=(1,1))
+        self.yFull=nn.Linear(dmodel,1)
 
     def forward(self,x,ty):
         """
@@ -133,9 +128,9 @@ class GcnDecoder(nn.Module):
         :param ty: batch*N*Tout*dmodel
         :return:
         """
-        y=self.yCNN(x.permute(0,3,1,2).contiguous()) # batch*1*N*Tin
-        y=y.squeeze(dim=1) # batch*N*Tin
-        return self.predict(y) # batch*N*Tout
+        x=self.yFull(x) # batch*N*Tin*1
+        x=x.squeeze(dim=3) # batch*N*Tin
+        return self.predict(x) # batch*N*Tout
 
 
 class TemMulHeadAtte(nn.Module):
