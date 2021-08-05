@@ -53,9 +53,10 @@ class GCN(nn.Module):
             for k in range(self.hops):
                 # low filter nk,bdkt->bdnt
                 Hnow=torch.einsum("nk,bdkt->bdnt", (A, Hbefore)) # batch*dmodel*node*T
-                gateInput=torch.cat([X,Hnow],dim=3) # batch*dmodel*node*2T
-                z=torch.sigmoid(self.bn[k](self.gate(gateInput))) # batch*dmodel*node*T
-                Hnow=z*Hnow+(1-z)*X # batch*dmodel*node*T
+                # gateInput=torch.cat([X,Hnow],dim=3) # batch*dmodel*node*2T
+                # z=torch.sigmoid(self.bn[k](self.gate(gateInput))) # batch*dmodel*node*T
+                # Hnow=z*Hnow+(1-z)*X # batch*dmodel*node*T
+                Hnow=torch.sigmoid(X+Hnow)*torch.tanh(X+Hnow)
                 H.append(Hnow)
                 Hbefore = Hnow
             H = torch.cat(H, dim=3)  # batch*dmodel*N*(T*(hops+1))
