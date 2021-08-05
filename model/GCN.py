@@ -13,12 +13,12 @@ class GCN(nn.Module):
         self.hops = hops
         self.tradGcn = tradGcn
         self.dropout = nn.Dropout(p=dropout)
-        # 门
-        self.gate=nn.Linear(in_features=2*T,out_features=T)
-        # 设置batchnorm层
-        self.bn=nn.ModuleList()
-        for i in range(hops):
-            self.bn.append(nn.BatchNorm2d(num_features=dmodel))
+        # # 门
+        # self.gate=nn.Linear(in_features=2*T,out_features=T)
+        # # 设置batchnorm层
+        # self.bn=nn.ModuleList()
+        # for i in range(hops):
+        #     self.bn.append(nn.BatchNorm2d(num_features=dmodel))
         # 运用传统图卷积
         self.tradGcn = tradGcn
         if tradGcn:
