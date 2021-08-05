@@ -66,11 +66,12 @@ class GcnEncoderCell(nn.Module):
         out,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
-        gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
-        gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
-        gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
-        z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
-        finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
+        # gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
+        # gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
+        # gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
+        # z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
+        # finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
+        finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
         return finalHidden # batch*N*Tin*dmodel
 
