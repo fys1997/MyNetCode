@@ -35,8 +35,8 @@ class GcnEncoderCell(nn.Module):
         self.gate=nn.Linear(in_features=2*dmodel,out_features=dmodel)
         self.batchNorm=nn.BatchNorm2d(num_features=dmodel)
         # 设置图卷积层捕获空间特征
-        # self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops,dmodel=dmodel)
-        # self.spaceF=nn.Linear(2*dmodel,dmodel)
+        self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops,dmodel=dmodel)
+        self.spaceF=nn.Linear(2*dmodel,dmodel)
         self.spaceAtten=TemMulHeadAtte(dmodel=dmodel,num_heads=num_heads,dropout=dropout,device=device)
 
 
@@ -49,23 +49,29 @@ class GcnEncoderCell(nn.Module):
         :return:
         """
         # 先捕获空间依赖
-        spaceQuery=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
-        spaceQuery=spaceQuery.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
 
-        spaceKey=torch.cat([hidden,tXin],dim=3)
-        spaceKey=spaceKey.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
-
-        spaceValue=hidden.clone() # batch*N*Tin*dmodel
-        spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
-
-        spaceValue,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=None) # batch*T*N*dmodel
-        spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
+        # spaceQuery=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
+        # spaceQuery=spaceQuery.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
+        #
+        # spaceKey=torch.cat([hidden,tXin],dim=3)
+        # spaceKey=spaceKey.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
+        #
+        # spaceValue=hidden.clone() # batch*N*Tin*dmodel
+        # spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
+        #
+        # spaceValue,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=None) # batch*T*N*dmodel
+        # spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
         # 捕获时间依赖
-        f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        key=f2Input # batch*N*Tin*2dmodel
+        # GCN捕获空间依赖
+        gcnOutput=self.Gcn(hidden.permute(0,3,1,2).contiguous()) # batch*dmodel*N*T
+        gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*T*dmodel
 
-        f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
-        query=f1Input # batch*N*Tin*2dmodel
+        # 捕获时间依赖
+        # f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
+        key=hidden.clone() # batch*N*Tin*dmodel
+
+        # f1Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
+        query=hidden.clone() # batch*N*Tin*dmodel
 
 
         value=hidden.clone() # batch*N*Tin*dmodel
@@ -75,11 +81,11 @@ class GcnEncoderCell(nn.Module):
         out,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
-        gateInput=torch.cat([spaceValue,out],dim=3) # batch*N*Tin*2dmodel
+        gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
         gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
         gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
         z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
-        finalHidden=z*spaceValue+(1-z)*out # batch*N*Tin*dmodel
+        finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
         # finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
         return finalHidden # batch*N*Tin*dmodel
@@ -155,11 +161,11 @@ class TemMulHeadAtte(nn.Module):
         self.dropout=nn.Dropout(p=dropout)
         self.device=device
 
-        d_keys=2*dmodel//num_heads
+        d_keys=dmodel//num_heads
         d_values=dmodel//num_heads
 
-        self.query_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
-        self.key_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
+        self.query_projection=nn.Linear(in_features=dmodel,out_features=d_keys*num_heads)
+        self.key_projection=nn.Linear(in_features=dmodel,out_features=d_keys*num_heads)
         self.value_projection=nn.Linear(in_features=dmodel,out_features=d_values*num_heads)
         self.out_projection=nn.Linear(in_features=d_values*num_heads,out_features=dmodel)
 
