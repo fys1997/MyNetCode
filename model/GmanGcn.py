@@ -104,7 +104,7 @@ class GcnEncoder(nn.Module):
         self.device=device
         self.encoderBlocks=encoderBlocks
 
-        self.xFull=nn.Linear(in_features=2,out_features=dmodel)
+        self.xFull=nn.Linear(in_features=1,out_features=dmodel)
 
     def forward(self,x,tx,ty):
         """
