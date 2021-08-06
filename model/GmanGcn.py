@@ -58,9 +58,8 @@ class GcnEncoderCell(nn.Module):
         spaceValue=hidden.clone() # batch*N*Tin*dmodel
         spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
 
-        space_atten_mask=None
-        spaceOut,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=space_atten_mask) # batch*T*N*dmodel
-        spaceOut=spaceOut.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
+        spaceValue,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=None) # batch*T*N*dmodel
+        spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
         # 捕获时间依赖
         f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
         key=f2Input # batch*N*Tin*2dmodel
@@ -76,11 +75,11 @@ class GcnEncoderCell(nn.Module):
         out,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
-        gateInput=torch.cat([spaceOut,out],dim=3) # batch*N*Tin*2dmodel
+        gateInput=torch.cat([spaceValue,out],dim=3) # batch*N*Tin*2dmodel
         gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
         gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
         z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
-        finalHidden=z*spaceOut+(1-z)*out # batch*N*Tin*dmodel
+        finalHidden=z*spaceValue+(1-z)*out # batch*N*Tin*dmodel
         # finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
         return finalHidden # batch*N*Tin*dmodel
