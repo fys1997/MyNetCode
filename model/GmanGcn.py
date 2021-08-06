@@ -35,8 +35,9 @@ class GcnEncoderCell(nn.Module):
         self.gate=nn.Linear(in_features=2*dmodel,out_features=dmodel)
         self.batchNorm=nn.BatchNorm2d(num_features=dmodel)
         # 设置图卷积层捕获空间特征
-        self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops,dmodel=dmodel)
-        self.spaceF=nn.Linear(2*dmodel,dmodel)
+        # self.Gcn=GCN.GCN(T=Tin,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,device=device,tradGcn=tradGcn,dropout=dropout,hops=hops,dmodel=dmodel)
+        # self.spaceF=nn.Linear(2*dmodel,dmodel)
+        self.spaceAtten=TemMulHeadAtte(dmodel=dmodel,num_heads=num_heads,dropout=dropout,device=device)
 
 
     def forward(self,x,hidden,tXin):
@@ -48,10 +49,18 @@ class GcnEncoderCell(nn.Module):
         :return:
         """
         # 先捕获空间依赖
-        gcnInput=hidden # batch*N*Tin*dmodel)
-        # gcnInput=self.spaceF(gcnInput) # batch*N*Tin*dmodel
-        gcnOutput=self.Gcn(gcnInput.permute(0,3,1,2).contiguous()) # batch*dmodel*N*Tin
-        gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*Tin*dmodel
+        spaceQuery=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
+        spaceQuery=spaceQuery.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
+
+        spaceKey=torch.cat([hidden,tXin],dim=3)
+        spaceKey=spaceKey.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
+
+        spaceValue=hidden.clone() # batch*N*Tin*dmodel
+        spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
+
+        space_atten_mask=None
+        spaceOut,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=space_atten_mask) # batch*T*N*dmodel
+        spaceOut=spaceOut.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
         # 捕获时间依赖
         f2Input=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*(2dmodel)
         key=f2Input # batch*N*Tin*2dmodel
@@ -60,18 +69,18 @@ class GcnEncoderCell(nn.Module):
         query=f1Input # batch*N*Tin*2dmodel
 
 
-        value=hidden # batch*N*Tin*dmodel
+        value=hidden.clone() # batch*N*Tin*dmodel
 
         # 做attention
         atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).to(self.device) # batch*N*1*Tq*Ts
         out,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
-        gateInput=torch.cat([gcnOutput,out],dim=3) # batch*N*Tin*2dmodel
+        gateInput=torch.cat([spaceOut,out],dim=3) # batch*N*Tin*2dmodel
         gateInput=self.gate(gateInput) # batch*N*Tin*dmodel
         gateInput=gateInput.permute(0,3,1,2).contiguous() # batch*dmodel*N*Tin
         z=torch.sigmoid(self.batchNorm(gateInput).permute(0,2,3,1).contiguous()) # batch*N*Tin*dmodel
-        finalHidden=z*gcnOutput+(1-z)*out # batch*N*Tin*dmodel
+        finalHidden=z*spaceOut+(1-z)*out # batch*N*Tin*dmodel
         # finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
         return finalHidden # batch*N*Tin*dmodel
@@ -167,23 +176,24 @@ class TemMulHeadAtte(nn.Module):
         B,N,T,E=query.shape
         H=self.num_heads
 
-        query=self.query_projection(query).view(B,N,T,H,-1) # batch*N*T*heads*d_keys
-        key=self.key_projection(key).view(B,N,T,H,-1) # batch*N*T*heads*d_keys
-        value=self.value_projection(value).view(B,N,T,H,-1) # batch*N*T*heads*d_values
+        query=F.relu(self.query_projection(query).view(B,N,T,H,-1)) # batch*N*T*heads*d_keys
+        key=F.relu(self.key_projection(key).view(B,N,T,H,-1)) # batch*N*T*heads*d_keys
+        value=F.relu(self.value_projection(value).view(B,N,T,H,-1)) # batch*N*T*heads*d_values
 
         scale=1./sqrt(query.size(4))
 
         scores=torch.einsum("bnthe,bnshe->bnhts",(query,key)) # batch*N*head*Tq*Ts
-        scores.masked_fill_(atten_mask,-np.inf) # batch*N*head*Tq*Ts
+        if atten_mask is not None:
+            scores.masked_fill_(atten_mask,-np.inf) # batch*N*head*Tq*Ts
         scores=self.dropout(torch.softmax(scale*scores,dim=-1))
 
-        out=torch.einsum("bnhts,bnshd->bnthd",(scores,value)) # batch*N*T*heads*d_values
-        out=out.contiguous()
-        out=out.view(B,N,T,-1) # batch*N*T*dmodel
-        out=self.out_projection(out)
+        value=torch.einsum("bnhts,bnshd->bnthd",(scores,value)) # batch*N*T*heads*d_values
+        value=value.contiguous()
+        value=value.view(B,N,T,-1) # batch*N*T*dmodel
+        value=F.relu(self.out_projection(value))
 
         # 返回最后的向量和得到的attention分数
-        return out,scores
+        return value,scores
 
 
 
