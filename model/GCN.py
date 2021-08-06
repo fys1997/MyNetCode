@@ -34,16 +34,9 @@ class GCN(nn.Module):
         :param X: batch*dmodel*node*T
         :return: Hout:[batch*dmodel*node*T]
         """
-        adjMat = torch.mm(self.trainMatrix1, self.trainMatrix2)
-        adjMat = F.softmax(adjMat, dim=1)+torch.ones(adjMat.shape[0]).to(self.device)
-        # 计算邻接矩阵的度矩阵
-        rowsum = torch.sum(adjMat, dim=1)  # 每一行相加求和
-        degreeMat = torch.pow(rowsum, -0.5)
-        degreeMat[torch.isinf(degreeMat)] = 0
-
-        degreeMat = torch.diag(degreeMat)
-        # D^-1/2*A*D^-1/2
-        A = torch.mm(torch.mm(degreeMat, adjMat), degreeMat)
+        adjMat = F.relu(torch.mm(self.trainMatrix1, self.trainMatrix2))
+        adjMat = F.softmax(adjMat, dim=1)
+        A=adjMat
 
         H = list()
         H.append(X)
