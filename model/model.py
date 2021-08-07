@@ -28,11 +28,14 @@ class mixNet(nn.Module):
         self.arSize = args.arSize
         self.dropout = nn.Dropout(p=args.dropout)
         # 定义GCNEncoder
-        self.GcnEncoder=GG.GcnEncoder(num_embedding=args.num_embedding,N=N,trainMatrix1=self.trainMatrix1,
-                                      trainMatrix2=self.trainMatrix2,hops=self.hops,device=device,tradGcn=args.tradGcn,
-                                      dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks)
-        self.GcnDecoder=GG.GcnDecoder(N=N,dmodel=args.dmodel,Tout=outputT,Tin=T,num_heads=args.head,dropout=args.dropout,device=device,
-                                      trainMatrix1=self.trainMatrix1,trainMatrix2=self.trainMatrix2,hops=self.hops,tradGcn=args.tradGcn)
+        # self.GcnEncoder=GG.GcnEncoder(num_embedding=args.num_embedding,N=N,trainMatrix1=self.trainMatrix1,
+        #                               trainMatrix2=self.trainMatrix2,hops=self.hops,device=device,tradGcn=args.tradGcn,
+        #                               dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks)
+        # self.GcnDecoder=GG.GcnDecoder(N=N,dmodel=args.dmodel,Tout=outputT,Tin=T,num_heads=args.head,dropout=args.dropout,device=device,
+        #                               trainMatrix1=self.trainMatrix1,trainMatrix2=self.trainMatrix2,hops=self.hops,tradGcn=args.tradGcn)
+        self.GcnAtteNet=GG.GcnAtteNet(num_embedding=args.num_embedding,N=N,trainMatrix1=self.trainMatrix1,trainMatrix2=self.trainMatrix2,
+                                      hops=self.hops,device=device,tradGcn=args.tradGcn,dropout=args.dropout,dmodel=args.dmodel,
+                                      num_heads=args.head,Tin=T,Tout=outputT,encoderBlocks=args.encoderBlocks)
         # predict layer
         # self.predict=nn.Linear(in_features=outputT+self.arSize,out_features=outputT)
         # read spatial embedding
@@ -53,8 +56,7 @@ class mixNet(nn.Module):
         ty=Y[...,1] # batch*node*Tout 表示Y的时间index
         # 把spa
         # 开始encoder
-        output,ty=self.GcnEncoder(vx.unsqueeze(dim=3),tx,ty,self.spatialEmbed) # batch*N*Tin*dmodel
-        result=self.GcnDecoder(output,ty,self.spatialEmbed) # batch*N*Tout
+        result=self.GcnAtteNet(vx,tx,ty,self.spatialEmbed)
         # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         # result=self.predict(result)
 

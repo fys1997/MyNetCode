@@ -15,7 +15,7 @@ parser.add_argument('--head',type=int,default=8,help='the multihead count of att
 parser.add_argument('--lrate',type=float,default=0.005,help='learning rate')
 parser.add_argument('--wdeacy',type=float,default=0.0001,help='weight decay rate')
 parser.add_argument('--data',type=str,default='data/METR-LA-12/',help='data path')
-parser.add_argument('--batch_size',type=int,default=64,help='batch size')
+parser.add_argument('--batch_size',type=int,default=1,help='batch size')
 parser.add_argument('--epochs',type=int,default=100,help='')
 parser.add_argument('--print_every',type=int,default=100,help='')
 parser.add_argument('--save',type=str,default='modelSave/metr-12.pt',help='save path')
