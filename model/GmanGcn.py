@@ -212,6 +212,22 @@ class TemMulHeadAtte(nn.Module):
         return value,scores
 
 
+class GcnAtteNet(nn.Module):
+    def __init__(self,num_embedding,N, trainMatrix1, trainMatrix2,hops,device,tradGcn,
+                 dropout,dmodel,num_heads,Tin,Tout,encoderBlocks):
+        super(GcnAtteNet, self).__init__()
+        self.GcnEncoder=GcnEncoder(num_embedding=num_embedding,N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,
+                                   device=device,tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads,
+                                   Tin=Tin,encoderBlocks=encoderBlocks)
+        self.GcnDecoder=GcnDecoder(N=N,dmodel=dmodel,Tout=Tout,Tin=Tin,num_heads=num_heads,dropout=dropout,device=device,
+                                   trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,tradGcn=tradGcn)
+
+    def forward(self,vx,tx,ty,spatialEmbed):
+        output, ty = self.GcnEncoder(vx.unsqueeze(dim=3), tx, ty, spatialEmbed)  # batch*N*Tin*dmodel
+        result = self.GcnDecoder(output, ty, spatialEmbed)  # batch*N*Tout
+        return result
+
+
 
 
 
