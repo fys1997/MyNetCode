@@ -38,7 +38,7 @@ class mixNet(nn.Module):
         # read spatial embedding
         self.spatialEmbed=np.loadtxt(args.spatialEmbedding,skiprows=1)
         self.spatialEmbed=self.spatialEmbed[self.spatialEmbed[...,0].argsort()]
-        self.spatialEmbed=torch.from_numpy(self.spatialEmbed[...,1:]).float() # 对应文件的space embed [N*dmodel]
+        self.spatialEmbed=torch.from_numpy(self.spatialEmbed[...,1:]).float().to(self.device) # 对应文件的space embed [N*dmodel]
 
     def forward(self, X, Y, teacher_forcing_ratio):
         """
