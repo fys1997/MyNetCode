@@ -2,14 +2,12 @@ import torch.nn.utils
 import torch.optim as optim
 from model.model import mixNet
 import util
-import torch.nn as nn
 
 
 class trainer():
     def __init__(self,device,args,scaler,T,N,outputT):
         #self.data=data.permute(0,2,1).contiguous() #batch*node*T
         self.model=mixNet(args,device,T,N,outputT)
-        self.model=nn.DataParallel(self.model,[0,1,2,3])
         self.model.to(device)
         self.optimizer=optim.Adam(self.model.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
         self.loss=util.masked_mae
