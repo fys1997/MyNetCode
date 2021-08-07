@@ -2,7 +2,7 @@
 import torch.nn as nn
 import torch
 import model.GmanGcn as GG
-import model.TCN as TCN
+import numpy as np
 
 class mixNet(nn.Module):
     def __init__(self, args, device, T, N, outputT):
@@ -31,9 +31,14 @@ class mixNet(nn.Module):
         self.GcnEncoder=GG.GcnEncoder(num_embedding=args.num_embedding,N=N,trainMatrix1=self.trainMatrix1,
                                       trainMatrix2=self.trainMatrix2,hops=self.hops,device=device,tradGcn=args.tradGcn,
                                       dropout=args.dropout,dmodel=args.dmodel,num_heads=args.head,Tin=T,encoderBlocks=args.encoderBlocks)
-        self.GcnDecoder=GG.GcnDecoder(dmodel=args.dmodel,Tout=outputT,Tin=T)
+        self.GcnDecoder=GG.GcnDecoder(N=N,dmodel=args.dmodel,Tout=outputT,Tin=T,num_heads=args.head,dropout=args.dropout,device=device,
+                                      trainMatrix1=self.trainMatrix1,trainMatrix2=self.trainMatrix2,hops=self.hops,tradGcn=args.tradGcn)
         # predict layer
-        self.predict=nn.Linear(in_features=outputT+self.arSize,out_features=outputT)
+        # self.predict=nn.Linear(in_features=outputT+self.arSize,out_features=outputT)
+        # read spatial embedding
+        self.spatialEmbed=np.loadtxt(args.spatialEmbedding,skiprows=1)
+        self.spatialEmbed=self.spatialEmbed[self.spatialEmbed[...,0].argsort()]
+        self.spatialEmbed=torch.from_numpy(self.spatialEmbed[...,1:]).float() # 对应文件的space embed [N*dmodel]
 
     def forward(self, X, Y, teacher_forcing_ratio):
         """
@@ -46,9 +51,10 @@ class mixNet(nn.Module):
         tx=X[...,1] # batch*node*Tin 表示输入X的时间index
         Y=Y.permute(1,2,0,3).contiguous() # batch*node*Tout*2
         ty=Y[...,1] # batch*node*Tout 表示Y的时间index
+        # 把spa
         # 开始encoder
-        output,ty=self.GcnEncoder(vx.unsqueeze(dim=3),tx,ty) # batch*N*Tin*dmodel
-        result=self.GcnDecoder(output,ty) # batch*N*Tout
+        output,ty=self.GcnEncoder(vx.unsqueeze(dim=3),tx,ty,self.spatialEmbed) # batch*N*Tin*dmodel
+        result=self.GcnDecoder(output,ty,self.spatialEmbed) # batch*N*Tout
         # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         # result=self.predict(result)
 

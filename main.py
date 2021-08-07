@@ -2,6 +2,7 @@
 import math
 
 import torch
+
 import torch.nn as nn
 import torch.nn.functional as F
 import util
@@ -22,14 +23,11 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    a=torch.rand(2,2)
+    a=torch.rand(2,2,2,2) # batch*T*N*dmodel
     b=torch.rand(2,2)
-    c=torch.cat([a,b],dim=1)
     print(a)
     print(b)
-    c[1,1]=1
-    print(a)
-    print(c)
+    print(a+b)
 
 
 
