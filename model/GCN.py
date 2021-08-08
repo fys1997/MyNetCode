@@ -27,6 +27,12 @@ class GCN(nn.Module):
                 self.tradGcnW.append(nn.Linear(self.T, self.T))
         else:
             self.gcnLinear = nn.Linear(self.T * (self.hops + 1), self.T)
+        self.pLow=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aLow=nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.pMid = nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aMid = nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.pHigh = nn.Parameter(torch.rand(1).to(device)).to(device)
+        self.aHigh = nn.Parameter(torch.rand(1).to(device)).to(device)
 
     def forward(self,X):
         """
@@ -37,6 +43,7 @@ class GCN(nn.Module):
         adjMat = F.relu(torch.mm(self.trainMatrix1, self.trainMatrix2))
         adjMat = F.softmax(adjMat, dim=1)
         A=adjMat
+        I=torch.eye(A.shape[0])
 
         H = list()
         H.append(X)
@@ -45,7 +52,11 @@ class GCN(nn.Module):
         if self.tradGcn == False:
             for k in range(self.hops):
                 # low filter nk,bdkt->bdnt
-                Hnow=torch.einsum("nk,bdkt->bdnt", (A, Hbefore)) # batch*dmodel*node*T
+                HLow=torch.einsum("nk,bdkt->bdnt", (self.pLow*(self.aLow*A+(1-self.aLow)*I), Hbefore))
+                HMid=torch.einsum("nk,bdkt->bdnt", (self.pMid*(torch.pow(A,2)-self.aMid*I), Hbefore))
+                HHigh=torch.einsum("nk,bdkt->bdnt", (self.pHigh*(-self.aHigh*A+(1-self.aHigh)*I), Hbefore))
+                Hnow=torch.sigmoid(HLow*torch.sigmoid(HHigh+HMid)+HMid*torch.sigmoid(HLow+HHigh)+HHigh*torch.sigmoid(HLow+HMid))
+                # Hnow=torch.einsum("nk,bdkt->bdnt", (A, Hbefore)) # batch*dmodel*node*T
                 # gateInput=torch.cat([X,Hnow],dim=3) # batch*dmodel*node*2T
                 # z=torch.sigmoid(self.bn[k](self.gate(gateInput))) # batch*dmodel*node*T
                 # Hnow=z*Hnow+(1-z)*X # batch*dmodel*node*T

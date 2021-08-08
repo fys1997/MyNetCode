@@ -23,11 +23,8 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    a=torch.rand(2,2,2,2) # batch*T*N*dmodel
-    b=torch.rand(2,2)
+    a=torch.eye(3)
     print(a)
-    print(b)
-    print(a+b)
 
 
 

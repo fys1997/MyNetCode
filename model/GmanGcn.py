@@ -70,7 +70,7 @@ class GcnEncoderCell(nn.Module):
         query=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
 
 
-        value=hidden.clone() # batch*N*Tin*dmodel
+        value=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*dmodel
 
         # 做attention
         atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).to(self.device) # batch*N*1*Tq*Ts
@@ -173,11 +173,11 @@ class TemMulHeadAtte(nn.Module):
         self.device=device
 
         d_keys=2*dmodel//num_heads
-        d_values=dmodel//num_heads
+        d_values=2*dmodel//num_heads
 
         self.query_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
         self.key_projection=nn.Linear(in_features=2*dmodel,out_features=d_keys*num_heads)
-        self.value_projection=nn.Linear(in_features=dmodel,out_features=d_values*num_heads)
+        self.value_projection=nn.Linear(in_features=2*dmodel,out_features=d_values*num_heads)
         self.out_projection=nn.Linear(in_features=d_values*num_heads,out_features=dmodel)
 
     def forward(self,query,key,value,atten_mask):
