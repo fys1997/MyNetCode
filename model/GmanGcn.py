@@ -84,7 +84,7 @@ class GcnEncoderCell(nn.Module):
         finalHidden=z*gcnOutput+(1-z)*value # batch*N*Tin*dmodel
         # finalHidden=torch.sigmoid(gcnOutput+out)*torch.tanh(gcnOutput+out)
 
-        return finalHidden # batch*N*Tin*dmodel
+        return finalHidden+hidden # batch*N*Tin*dmodel
 
     @staticmethod
     def generate_square_subsequent_mask(B,N,T) -> torch.Tensor:
@@ -130,7 +130,7 @@ class GcnEncoder(nn.Module):
             hidden=self.encoderBlock[i].forward(hidden=hidden,tXin=tXin) # Tin*batch*N
             skip = skip + hidden
 
-        return skip+x,ty
+        return skip,ty
 
 
 class GcnDecoder(nn.Module):
