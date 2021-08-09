@@ -158,7 +158,7 @@ class GcnDecoder(nn.Module):
         x=self.GcnDecoderCell.forward(hidden=x,tXin=ty.permute(0,2,1,3).contiguous()) # batch*N*Tout*dmodel
         x=self.predict(x) # batch*N*Tout*1
         x=x.squeeze(dim=3) # batch*N*Tout
-        x=torch.cat([vx,x],dim=3) # batch*N*(Tin+Tout)
+        x=torch.cat([vx,x],dim=2) # batch*N*(Tin+Tout)
         x=self.projection(x)
 
         return x # batch*N*Tout
