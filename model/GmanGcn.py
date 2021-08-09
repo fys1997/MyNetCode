@@ -130,23 +130,25 @@ class GcnEncoder(nn.Module):
             hidden=self.encoderBlock[i].forward(hidden=hidden,tXin=tXin) # Tin*batch*N
             skip = skip + hidden
 
-        return skip,ty
+        return skip+x,ty
 
 
 class GcnDecoder(nn.Module):
     def __init__(self,N,dmodel,Tout,Tin,num_heads,dropout,device,trainMatrix1,trainMatrix2,hops,tradGcn):
         super(GcnDecoder, self).__init__()
         self.predict=nn.Linear(dmodel,1)
+        self.projection=nn.Linear(Tin+Tout,Tout)
         self.xTinToutCNN=nn.Conv2d(in_channels=Tin,out_channels=Tout,kernel_size=(1,1))
         self.GcnDecoderCell=GcnEncoderCell(N=N,trainMatrix1=trainMatrix1,trainMatrix2=trainMatrix2,hops=hops,device=device,
                                            tradGcn=tradGcn,dropout=dropout,dmodel=dmodel,num_heads=num_heads,Tin=Tout)
 
-    def forward(self,x,ty,spaceEmbed):
+    def forward(self,x,ty,spaceEmbed,vx):
         """
 
         :param x: # batch*N*Tin*dmodel
         :param ty: batch*N*Tout*dmodel
         :param spaceEmbed : N*dmodel
+        :param vx: 原来的数据 [batch*N*Tin]
         :return:
         """
         ty=ty.permute(0,2,1,3).contiguous()+spaceEmbed # batch*Tout*N*dmodel
@@ -155,8 +157,11 @@ class GcnDecoder(nn.Module):
         x=x.permute(0,2,1,3).contiguous() # batch*N*Tout*dmodel
         x=self.GcnDecoderCell.forward(hidden=x,tXin=ty.permute(0,2,1,3).contiguous()) # batch*N*Tout*dmodel
         x=self.predict(x) # batch*N*Tout*1
+        x=x.squeeze(dim=3) # batch*N*Tout
+        x=torch.cat([vx,x],dim=3) # batch*N*(Tin+Tout)
+        x=self.projection(x)
 
-        return x.squeeze(dim=3) # batch*N*Tout
+        return x # batch*N*Tout
 
 
 class TemMulHeadAtte(nn.Module):
@@ -224,7 +229,7 @@ class GcnAtteNet(nn.Module):
 
     def forward(self,vx,tx,ty,spatialEmbed):
         output, ty = self.GcnEncoder(vx.unsqueeze(dim=3), tx, ty, spatialEmbed)  # batch*N*Tin*dmodel
-        result = self.GcnDecoder(output, ty, spatialEmbed)  # batch*N*Tout
+        result = self.GcnDecoder(output, ty, spatialEmbed,vx=vx)  # batch*N*Tout
         return result
 
 
