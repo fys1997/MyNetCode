@@ -23,9 +23,9 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    a=torch.eye(3)
-    print(a)
-
+    a=pd.read_pickle('data/sensor_graph/adj_mx.pkl')
+    b=pd.read_hdf('data/metr-la.h5')
+    print("hi")
 
 
 
