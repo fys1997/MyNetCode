@@ -43,6 +43,8 @@ def main():
     train_time=[]
     best_valid_loss = 10000000
     for i in range(1,args.epochs+1):
+        if i%50==0:
+            engine.optimizer.lr=engine.optimizer.lr*0.5
         train_loss=[]
         train_mape=[]
         train_rmse=[]
