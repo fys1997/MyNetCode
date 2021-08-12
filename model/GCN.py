@@ -43,7 +43,7 @@ class GCN(nn.Module):
         adjMat = F.relu(torch.mm(self.trainMatrix1, self.trainMatrix2))
         adjMat = F.softmax(adjMat, dim=1)
         A=adjMat
-        I=torch.eye(A.shape[0]).to(self.device)
+        I=torch.eye(A.shape[0]).cuda()
 
         H = list()
         H.append(X)
