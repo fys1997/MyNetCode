@@ -120,7 +120,7 @@ class GcnEncoder(nn.Module):
         x=self.xFull(x) # batch*N*Tin*dmodel
         tx=self.timeEmbed(tx) # batch*N*Tin*dmodel
 
-        tXin=tx.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
+        tXin=tx.permute(0,2,1,3).contiguous()+spaceEmbed # batch*Tin*N*dmodel
         tXin=tXin.permute(0,2,1,3).contiguous() # batch*N*Tin*dmodel
 
         ty=self.timeEmbed(ty) # batch*N*Tout*dmodel
@@ -151,7 +151,7 @@ class GcnDecoder(nn.Module):
         :param vx: 原来的数据 [batch*N*Tin]
         :return:
         """
-        ty=ty.permute(0,2,1,3).contiguous() # batch*Tout*N*dmodel
+        ty=ty.permute(0,2,1,3).contiguous()+spaceEmbed # batch*Tout*N*dmodel
         x=x.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
         x=self.xTinToutCNN(x) # batch*Tout*N*dmodel
         x=x.permute(0,2,1,3).contiguous() # batch*N*Tout*dmodel
