@@ -9,9 +9,9 @@ class trainer():
     def __init__(self,device,args,scaler,T,N,outputT):
         #self.data=data.permute(0,2,1).contiguous() #batch*node*T
         self.model=mixNet(args,device,T,N,outputT)
-        self.model=nn.DataParallel(self.model,device_ids=[0,1,2,3])
-        self.model.to(device)
-        self.optimizer=optim.Adam(self.model.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
+        self.model=nn.DataParallel(self.model.cuda(),device_ids=[0,1,2,3])
+        # self.model.to(device)
+        self.optimizer=optim.Adam(self.model.module.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
         self.loss=util.masked_mae
         self.scaler=scaler
         self.clip=5
