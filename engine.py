@@ -29,7 +29,7 @@ class trainer():
         self.optimizer.zero_grad()
 
         X=X.permute(0,2,1,3).contiguous() # batch*N*T*2
-        Y=real_val.permute(1,0,2,3).contiguous() # outputT*batch*N*2
+        Y=real_val.permute(0,2,1,3).contiguous() # batch*N*outputT*2
 
         output=self.model(X,Y,0.5) # batch*N*T
         output=output.permute(0,2,1).contiguous() # batch*T*N
@@ -47,7 +47,7 @@ class trainer():
     def eval(self,X,real_val):
         self.model.eval()
         X=X.permute(0,2,1,3).contiguous() # batch*N*T*2
-        Y = real_val.permute(1,0,2,3).contiguous()  # outputT*batch*N*2
+        Y = real_val.permute(0,2,1,3).contiguous()  # batch*N*outputT*2
 
         output=self.model(X,Y,0)
         output = output.permute(0, 2, 1).contiguous()  # batch*T*N

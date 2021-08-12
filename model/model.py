@@ -47,12 +47,11 @@ class mixNet(nn.Module):
         """
 
         :param X: 输入数据，X:batch*node*T*2
-        :param Y: 真实值，Y:outputT*batch*node*2
+        :param Y: 真实值，Y:batch*node*outputT*2
         :return: 输出数据: Y:batch*node*T
         """
         vx=X[...,0] # batch*node*Tin 表示X车流量
         tx=X[...,1] # batch*node*Tin 表示输入X的时间index
-        Y=Y.permute(1,2,0,3).contiguous() # batch*node*Tout*2
         ty=Y[...,1] # batch*node*Tout 表示Y的时间index
         # 把spa
         # 开始encoder
