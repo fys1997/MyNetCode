@@ -42,7 +42,17 @@ def main():
     his_loss=[]
     val_time=[]
     train_time=[]
-    best_valid_loss = 10000000
+    if args.preTrain is not None and args.preTrain:
+        loss=[]
+        for iter,(x,y) in enumerate(dataloader['val_loader'].get_iterator()):
+            testx=torch.Tensor(x).to(device)
+            testy=torch.Tensor(y).to(device)
+            metrics=engine.eval(testx,testy)
+            loss.append(metrics[0])
+        best_valid_loss=np.mean(loss)
+        print("preTrain best valid loss:",best_valid_loss)
+    else:
+        best_valid_loss = 10000000
     for i in range(1,args.epochs+1):
         # engine.adjust_lr(i=i,epochs=70)
         train_loss=[]
