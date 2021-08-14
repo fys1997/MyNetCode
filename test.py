@@ -44,7 +44,7 @@ def main():
         testx=torch.Tensor(x).to(device) # batch*T*N*2
         testy=torch.Tensor(y).to(device) #batch*T*N*2
         with torch.no_grad():
-            preds=model(testx.permute(0,2,1,3).contiguous(),testy.permute(1,0,2,3).contiguous(),0).permute(0,2,1).contiguous()
+            preds=model(testx.permute(0,2,1,3).contiguous(),testy.permute(0,2,1,3).contiguous(),0).permute(0,2,1).contiguous()
         pred=scaler.inverse_transform(preds) #batch*T*N
         metrics=util.metric(pred,testy[:,:,:,0])
         mae.append(metrics[0])
@@ -58,10 +58,9 @@ def main():
 
     for iter, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
         testx = torch.Tensor(x).to(device) # batch*T*N*2
-        testx = testx.permute(0,2,1,3).contiguous() # batch*N*T*2
         testy=torch.Tensor(y).to(device) # batch*outputT*N*2
         with torch.no_grad():
-            preds = model(testx,testy.permute(1,0,2,3).contiguous(),0).permute(0,2,1).contiguous() # batch*T*N
+            preds = model(testx.permute(0,2,1,3).contiguous(),testy.permute(0,2,1,3).contiguous(),0).permute(0,2,1).contiguous() # batch*T*N
         outputs.append(preds)
 
     yhat = torch.cat(outputs, dim=0)
