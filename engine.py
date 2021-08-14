@@ -66,6 +66,5 @@ class trainer():
     def adjust_lr(self,i,epochs):
         if(i%epochs==0):
             for param_group in self.optimizer.param_groups:
-                scale=i/epochs
-                param_group["lr"]=0.001/scale
+                param_group["lr"]/=2
 

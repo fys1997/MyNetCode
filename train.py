@@ -25,6 +25,7 @@ parser.add_argument('--num_embedding',type=int,default=288,help='')
 parser.add_argument('--encoderBlocks',type=int,default=4,help=' encoder block numbers')
 parser.add_argument('--spatialEmbedding',type=str,default='data/sensor_graph/SE(METR).txt',help='the file save the spatial embedding')
 parser.add_argument('--preTrain',action='store_true',help='whether use preTrain model')
+parser.add_argument('--lr_epochs',type=int,default=30,help='decide when we should decrease the lr')
 
 args=parser.parse_args()
 
@@ -54,7 +55,7 @@ def main():
     else:
         best_valid_loss = 10000000
     for i in range(1,args.epochs+1):
-        # engine.adjust_lr(i=i,epochs=70)
+        engine.adjust_lr(i=i,epochs=args.lr_epochs)
         train_loss=[]
         train_mape=[]
         train_rmse=[]
