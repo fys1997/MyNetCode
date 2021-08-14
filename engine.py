@@ -8,8 +8,14 @@ import torch.nn as nn
 class trainer():
     def __init__(self,device,args,scaler,T,N,outputT):
         #self.data=data.permute(0,2,1).contiguous() #batch*node*T
-        self.model=mixNet(args,device,T,N,outputT)
-        self.model=nn.DataParallel(self.model.cuda(),device_ids=[0,1,2,3])
+        if args.preTrain is not None and args.preTrain:
+            with open(args.save, 'rb') as f:
+                self.model = torch.load(f)
+                self.model.to(device)
+                print("model load successfully")
+        else:
+            self.model=mixNet(args,device,T,N,outputT)
+            self.model=nn.DataParallel(self.model.cuda(),device_ids=[0,1,2,3])
         # self.model.to(device)
         self.optimizer=optim.Adam(self.model.module.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
         self.loss=util.masked_mae
