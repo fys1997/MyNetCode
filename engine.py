@@ -57,3 +57,8 @@ class trainer():
         rmse=util.masked_rmse(predict,real_val[:,:,:,0],0.0).item()
         return loss.item(),mape,rmse
 
+    def adjust_lr(self,i,epochs):
+        if(i%epochs==0):
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"]=0.001
+

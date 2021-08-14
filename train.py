@@ -43,6 +43,7 @@ def main():
     train_time=[]
     best_valid_loss = 10000000
     for i in range(1,args.epochs+1):
+        engine.adjust_lr(i=i,epochs=70)
         train_loss=[]
         train_mape=[]
         train_rmse=[]
