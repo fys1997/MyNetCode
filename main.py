@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import util
 import numpy as np
 import pandas as pd
+import h5py
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
@@ -23,9 +24,13 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    a=pd.read_pickle('data/sensor_graph/adj_mx.pkl')
-    b=pd.read_hdf('data/metr-la.h5')
-    print("hi")
+    f=h5py.File('data/BJ_FLOW.h5','r')
+    for key in f.keys():
+        b=f[key]
+        print(f[key].name)
+        print(f[key].shape)
+        print(f[key].value)
+
 
 
 

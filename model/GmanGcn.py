@@ -5,6 +5,7 @@ import model.timeEmbedding as TE
 import torch.nn.functional as F
 from math import sqrt
 import numpy as np
+from model.Series_decomp import Series_decomp
 
 
 class GcnEncoderCell(nn.Module):
@@ -25,7 +26,7 @@ class GcnEncoderCell(nn.Module):
         :param Tin: 输入时间的长度
         """
         super(GcnEncoderCell, self).__init__()
-        self.temporalAttention=TemMulHeadAtte(dmodel=dmodel,num_heads=num_heads,dropout=dropout,device=device)
+        self.DLinear=DLinear(N=N,T=Tin, D=dmodel)
 
         self.device=device
         # 设置gate门
@@ -44,37 +45,14 @@ class GcnEncoderCell(nn.Module):
         :param tXin: 加了timeEmbedding的x值：tXin:[batch*N*Tin*dmodel]
         :return:
         """
-        # 先捕获空间依赖
-
-        # spaceQuery=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
-        # spaceQuery=spaceQuery.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
-        #
-        # spaceKey=torch.cat([hidden,tXin],dim=3)
-        # spaceKey=spaceKey.permute(0,2,1,3).contiguous() # batch*Tin*N*2dmodel
-        #
-        # spaceValue=hidden.clone() # batch*N*Tin*dmodel
-        # spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*Tin*N*dmodel
-        #
-        # spaceValue,spaceAtten=self.spaceAtten(query=spaceQuery,key=spaceKey,value=spaceValue,atten_mask=None) # batch*T*N*dmodel
-        # spaceValue=spaceValue.permute(0,2,1,3).contiguous() # batch*N*T*dmodel
-        # 捕获时间依赖
-        # GCN捕获空间依赖
         gcnOutput=self.Gcn(hidden.permute(0,3,1,2).contiguous()) # batch*dmodel*N*T
         gcnOutput=gcnOutput.permute(0,2,3,1).contiguous() # batch*N*T*dmodel
 
         # 捕获时间依赖
-
-        key=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
-
-
-        query=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
+        value=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*2dmodel
+        value = self.DLinear(value)
 
 
-        value=torch.cat([hidden,tXin],dim=3) # batch*N*Tin*dmodel
-
-        # 做attention
-        atten_mask=GcnEncoderCell.generate_square_subsequent_mask(B=query.size(0),N=query.size(1),T=query.size(2)).cuda() # batch*N*1*Tq*Ts
-        value,atten=self.temporalAttention.forward(query=query,key=key,value=value,atten_mask=atten_mask) # batch*N*T*dmodel
 
         # 做gate
         gateInput=torch.cat([gcnOutput,value],dim=3) # batch*N*Tin*2dmodel
@@ -215,6 +193,32 @@ class TemMulHeadAtte(nn.Module):
 
         # 返回最后的向量和得到的attention分数
         return value,scores
+
+
+class DLinear(nn.Module):
+    def __init__(self,N,T,D):
+        super(DLinear, self).__init__()
+        self.decompsition = Series_decomp(kernel_size=3)
+        self.Seasonal_Linear = nn.Linear(in_features=T, out_features=T)
+        self.Trend_Linear = nn.Linear(in_features=T, out_features=T)
+        self.DmodelLinear = nn.Conv2d(in_channels=2*D, out_channels=D, kernel_size=(1,1), bias=True)
+
+    def forward(self,x):
+        """
+        :param x:  B*N*T*2D
+        :return:
+        """
+        B, N, T, D = x.shape
+        x = x.contiguous().view(B*N, T, D).contiguous()
+        seasonal_x, trend_x = self.decompsition(x) # BN*T*2D
+        seasonal_x = seasonal_x.permute(0,2,1).contiguous() # BN*2D*T
+        trend_x = trend_x.permute(0,2,1).contiguous() # BN*2D*T
+        seasonal_output = self.Seasonal_Linear(seasonal_x)
+        trend_output = self.Trend_Linear(trend_x)
+        output = seasonal_output+trend_output # BN*2D*T
+        output = output.permute(0,2,1).contiguous().view(B,N,T,D).contiguous() # B*N*T*2D
+        output = self.DmodelLinear(output.permute(0,3,1,2).contiguous()) # B*D*N*T
+        return  output.permute(0,2,3,1).contiguous()# B*N*T*D
 
 
 class GcnAtteNet(nn.Module):

@@ -15,9 +15,8 @@ class trainer():
                 print("model load successfully")
         else:
             self.model=mixNet(args,device,T,N,outputT)
-            self.model=nn.DataParallel(self.model.cuda(),device_ids=[0,1,2,3])
         # self.model.to(device)
-        self.optimizer=optim.Adam(self.model.module.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
+        self.optimizer=optim.Adam(self.model.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
         self.loss=util.masked_mae
         self.scaler=scaler
         self.clip=5
@@ -63,8 +62,4 @@ class trainer():
         rmse=util.masked_rmse(predict,real_val[:,:,:,0],0.0).item()
         return loss.item(),mape,rmse
 
-    def adjust_lr(self,i,epochs):
-        if(i%epochs==0):
-            for param_group in self.optimizer.param_groups:
-                param_group["lr"]/=2
 
