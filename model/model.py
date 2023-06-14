@@ -41,7 +41,7 @@ class mixNet(nn.Module):
         # read spatial embedding
         self.spatialEmbed=np.loadtxt(args.spatialEmbedding,skiprows=1)
         self.spatialEmbed=self.spatialEmbed[self.spatialEmbed[...,0].argsort()]
-        self.spatialEmbed=torch.from_numpy(self.spatialEmbed[...,1:]).float() # 对应文件的space embed [N*64]
+        self.spatialEmbed=torch.from_numpy(self.spatialEmbed[...,1:]).float().to(device) # 对应文件的space embed [N*64]
         self.spatialEmbedLinear = nn.Linear(in_features=64, out_features=args.dmodel)
 
     def forward(self, X, Y, teacher_forcing_ratio):
@@ -56,9 +56,8 @@ class mixNet(nn.Module):
         ty=Y[...,1] # batch*node*Tout 表示Y的时间index
         # 把spa
         # 开始encoder
-        spatialEmbed=self.spatialEmbed.cuda()
-        spatialEmbed = self.spatialEmbedLinear(spatialEmbed)
-        result=self.GcnAtteNet(vx,tx,ty,spatialEmbed)
+        self.spatialEmbed = self.spatialEmbedLinear(self.spatialEmbed)
+        result=self.GcnAtteNet(vx,tx,ty,self.spatialEmbed)
         # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         # result=self.predict(result)
 

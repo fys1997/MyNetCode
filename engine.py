@@ -15,6 +15,7 @@ class trainer():
                 print("model load successfully")
         else:
             self.model=mixNet(args,device,T,N,outputT)
+            self.model.to(device)
         # self.model.to(device)
         self.optimizer=optim.Adam(self.model.parameters(),lr=args.lrate,weight_decay=args.wdeacy)
         self.loss=util.masked_mae
