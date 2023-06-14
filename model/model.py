@@ -56,8 +56,9 @@ class mixNet(nn.Module):
         ty=Y[...,1] # batch*node*Tout 表示Y的时间index
         # 把spa
         # 开始encoder
-        self.spatialEmbed = self.spatialEmbedLinear(self.spatialEmbed)
-        result=self.GcnAtteNet(vx,tx,ty,self.spatialEmbed)
+        spatialEmbed = self.spatialEmbedLinear(self.spatialEmbed)
+        spatialEmbed.to(self.device)
+        result=self.GcnAtteNet(vx,tx,ty,spatialEmbed)
         # result=torch.cat([result,vx[...,-self.arSize:]],dim=2)
         # result=self.predict(result)
 
